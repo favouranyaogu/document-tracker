@@ -32,16 +32,52 @@ function App() {
   const [filter, setFilter] = useState('all')
   const [historyExpandedId, setHistoryExpandedId] = useState(null)
   const [activityLogs, setActivityLogs] = useState([])
+  const [permissionMessages, setPermissionMessages] = useState({})
+
+  async function getUserWithProfile(authUser) {
+    if (!authUser) return null
+    const { data } = await supabase
+      .from('profiles')
+      .select('role, name')
+      .eq('id', authUser.id)
+      .single()
+
+    return {
+      ...authUser,
+      role: data?.role || 'staff',
+      name: data?.name || authUser.email
+    }
+  }
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
+    let mounted = true
+
+    async function syncSessionUser(sessionUser) {
+      if (!mounted) return
+      if (!sessionUser) {
+        setUser(null)
+        setLoading(false)
+        return
+      }
+
+      setUser(sessionUser)
       setLoading(false)
+
+      const nextUser = await getUserWithProfile(sessionUser)
+      if (!mounted) return
+      setUser(nextUser)
+    }
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      syncSessionUser(session?.user ?? null)
     })
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
+      syncSessionUser(session?.user ?? null)
     })
-    return () => subscription.unsubscribe()
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
+    }
   }, [])
 
   async function fetchDocuments() {
@@ -50,7 +86,7 @@ function App() {
     setDocError(null)
     const { data, error } = await supabase
       .from('documents')
-      .select('id, title, description, reference, status, due_date, status_updated_at, created_at')
+      .select('id, title, description, reference, status, due_date, status_updated_at, created_at, created_by')
       .order('created_at', { ascending: false })
     setDocLoading(false)
     if (error) {
@@ -97,6 +133,19 @@ function App() {
     }
   }
 
+  function setPermissionMessage(docId, message) {
+    setPermissionMessages((prev) => ({ ...prev, [docId]: message }))
+  }
+
+  function clearPermissionMessage(docId) {
+    setPermissionMessages((prev) => {
+      if (!prev[docId]) return prev
+      const next = { ...prev }
+      delete next[docId]
+      return next
+    })
+  }
+
   function toDateInputValue(dateString) {
     if (!dateString) return ''
     const date = new Date(dateString)
@@ -117,6 +166,16 @@ function App() {
     setEditingId(null)
     setEditStatus('pending')
     setEditDueDate('')
+  }
+
+  function handleEditClick(doc, userRole) {
+    clearPermissionMessage(doc.id)
+    if (userRole === 'staff' && doc.created_by !== user.id) {
+      setPermissionMessage(doc.id, 'You can only edit documents you created.')
+      return
+    }
+
+    startEdit(doc)
   }
 
   async function fetchActivityLogs(documentId) {
@@ -163,6 +222,48 @@ function App() {
 
     fetchDocuments()
     if (historyExpandedId === id) fetchActivityLogs(id)
+  }
+
+  async function handleStatusChange(doc, newStatus, userRole) {
+    clearPermissionMessage(doc.id)
+    if (userRole === 'staff' && doc.created_by !== user.id) {
+      setPermissionMessage(doc.id, 'You can only edit documents you created.')
+      return
+    }
+
+    await updateDocumentStatus(doc.id, newStatus, doc.status)
+  }
+
+  async function deleteDocument(docId) {
+    setDocError(null)
+    const { error } = await supabase
+      .from('documents')
+      .delete()
+      .eq('id', docId)
+
+    if (error) {
+      setDocError(error.message)
+      return false
+    }
+
+    if (historyExpandedId === docId) {
+      setHistoryExpandedId(null)
+      setActivityLogs([])
+    }
+
+    clearPermissionMessage(docId)
+    fetchDocuments()
+    return true
+  }
+
+  async function handleDeleteClick(doc, userRole) {
+    clearPermissionMessage(doc.id)
+    if (userRole === 'staff') {
+      setPermissionMessage(doc.id, 'Only admins can delete documents.')
+      return
+    }
+
+    await deleteDocument(doc.id)
   }
 
   async function createDocument() {
@@ -229,12 +330,17 @@ function App() {
     e.preventDefault()
     setError(null)
     setLoginLoading(true)
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password })
     setLoginLoading(false)
 
     if (signInError) {
       setError(signInError.message)
       return
+    }
+
+    if (signInData?.user) {
+      const nextUser = await getUserWithProfile(signInData.user)
+      setUser(nextUser)
     }
 
     setEmail('')
@@ -329,6 +435,8 @@ function App() {
 
   const overdueCount = documents.filter(isDocOverdue).length
   const dueSoonCount = documents.filter(isDueSoon).length
+  const userRole = user?.role === 'admin' ? 'admin' : 'staff'
+  const displayName = user?.name || user?.email || 'Unknown User'
 
   if (loading) {
     return (
@@ -349,6 +457,10 @@ function App() {
           </div>
         </div>
         <div className="nav-user">
+          <div className="user-identity">
+            <span className="user-name">{displayName}</span>
+            <span className={`role-badge role-badge-${userRole}`}>{userRole}</span>
+          </div>
           <span className="user-email">{user?.email}</span>
           <button type="button" className="btn btn-neutral" onClick={handleLogout}>Logout</button>
         </div>
@@ -543,7 +655,7 @@ function App() {
                           <select
                             id={`status-${doc.id}`}
                             value={doc.status}
-                            onChange={(e) => updateDocumentStatus(doc.id, e.target.value, doc.status)}
+                            onChange={(e) => handleStatusChange(doc, e.target.value, userRole)}
                           >
                             <option value="pending">Pending</option>
                             <option value="in_progress">In Progress</option>
@@ -552,8 +664,11 @@ function App() {
                         </div>
 
                         <div className="card-actions">
-                          <button type="button" className="btn btn-primary btn-small" onClick={() => startEdit(doc)}>
+                          <button type="button" className="btn btn-primary btn-small" onClick={() => handleEditClick(doc, userRole)}>
                             Edit
+                          </button>
+                          <button type="button" className="btn btn-danger btn-small" onClick={() => handleDeleteClick(doc, userRole)}>
+                            Delete
                           </button>
                           <button
                             type="button"
@@ -563,6 +678,9 @@ function App() {
                             {historyExpandedId === doc.id ? 'Hide History' : 'View History'}
                           </button>
                         </div>
+                        {permissionMessages[doc.id] && (
+                          <p className="inline-permission-msg">{permissionMessages[doc.id]}</p>
+                        )}
 
                         {historyExpandedId === doc.id && (
                           <div className="activity-history">
