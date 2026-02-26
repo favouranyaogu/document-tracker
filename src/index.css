@@ -149,7 +149,7 @@ body {
 
 .kpi-bar {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 1rem;
 }
 
@@ -201,6 +201,14 @@ body {
   font-size: 0.92rem;
 }
 
+.panel-heading-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+}
+
 .form-group {
   margin-bottom: 1rem;
 }
@@ -219,6 +227,7 @@ input[type="text"],
 input[type="email"],
 input[type="password"],
 input[type="date"],
+input[type="number"],
 textarea,
 select {
   width: 100%;
@@ -338,6 +347,56 @@ select:focus {
   margin-bottom: 0.4rem;
 }
 
+.export-picker {
+  margin: 1rem 0 1.1rem;
+  padding: 0.95rem;
+  border: 1px solid #d7dfeb;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.export-picker-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.export-control {
+  flex: 1 1 180px;
+  margin-bottom: 0;
+}
+
+.export-confirm-btn {
+  white-space: nowrap;
+}
+
+.permission-list {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.permission-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.75rem 0.85rem;
+  border: 1px solid #d9e1ec;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.permission-user-name {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
 .document-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -384,6 +443,13 @@ select:focus {
   font-size: 0.88rem;
   color: #475569;
   font-weight: 600;
+}
+
+.document-amount {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #1e293b;
+  font-weight: 700;
 }
 
 .due-overdue {
@@ -472,6 +538,35 @@ select:focus {
   font-size: 0.79rem;
 }
 
+.export-history-list {
+  list-style: none;
+  margin: 1rem 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.export-history-item {
+  border: 1px solid #d9e1ec;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 0.78rem 0.85rem;
+}
+
+.export-history-primary {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.export-history-meta {
+  margin: 0.18rem 0 0;
+  font-size: 0.83rem;
+  color: #64748b;
+}
+
 .edit-panel .edit-title {
   margin: 0 0 0.45rem;
   font-size: 1rem;
@@ -547,6 +642,18 @@ select:focus {
 
   .controls-row {
     gap: 0.65rem;
+  }
+
+  .export-picker-controls {
+    align-items: stretch;
+  }
+
+  .export-control {
+    flex: 1 1 100%;
+  }
+
+  .export-confirm-btn {
+    width: 100%;
   }
 
   .control-field label {

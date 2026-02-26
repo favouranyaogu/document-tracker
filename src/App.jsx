@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { createClient } from '@supabase/supabase-js'
+import * as XLSX from 'xlsx'
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -21,11 +22,13 @@ function App() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [reference, setReference] = useState('')
+  const [amount, setAmount] = useState('')
   const [status, setStatus] = useState('pending')
   const [submitLoading, setSubmitLoading] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [editTitle, setEditTitle] = useState('')
   const [editDescription, setEditDescription] = useState('')
+  const [editAmount, setEditAmount] = useState('')
   const [editStatus, setEditStatus] = useState('pending')
   const [editDueDate, setEditDueDate] = useState('')
   const [search, setSearch] = useState('')
@@ -33,6 +36,20 @@ function App() {
   const [historyExpandedId, setHistoryExpandedId] = useState(null)
   const [activityLogs, setActivityLogs] = useState([])
   const [permissionMessages, setPermissionMessages] = useState({})
+  const [canExport, setCanExport] = useState(false)
+  const [exportPickerOpen, setExportPickerOpen] = useState(false)
+  const [selectedExportMonth, setSelectedExportMonth] = useState(() => String(new Date().getMonth() + 1))
+  const [selectedExportYear, setSelectedExportYear] = useState(() => String(new Date().getFullYear()))
+  const [exportLoading, setExportLoading] = useState(false)
+  const [exportError, setExportError] = useState(null)
+  const [staffUsers, setStaffUsers] = useState([])
+  const [staffExportAccess, setStaffExportAccess] = useState({})
+  const [permissionsLoading, setPermissionsLoading] = useState(false)
+  const [permissionsError, setPermissionsError] = useState(null)
+  const [permissionActionId, setPermissionActionId] = useState(null)
+  const [exportLogs, setExportLogs] = useState([])
+  const [exportLogsLoading, setExportLogsLoading] = useState(false)
+  const [exportLogsError, setExportLogsError] = useState(null)
 
   async function getUserWithProfile(authUser) {
     if (!authUser) return null
@@ -47,6 +64,160 @@ function App() {
       role: data?.role || 'staff',
       name: data?.name || authUser.email
     }
+  }
+
+  async function fetchUserExportPermission(currentUser) {
+    if (!currentUser) {
+      setCanExport(false)
+      return
+    }
+
+    if (currentUser.role === 'admin') {
+      setCanExport(true)
+      return
+    }
+
+    const { data } = await supabase
+      .from('export_permissions')
+      .select('is_active')
+      .eq('user_id', currentUser.id)
+      .eq('is_active', true)
+      .single()
+
+    setCanExport(Boolean(data?.is_active))
+  }
+
+  async function fetchStaffExportPermissions() {
+    if (!user || user.role !== 'admin') return
+
+    setPermissionsLoading(true)
+    setPermissionsError(null)
+
+    const { data: staffData, error: staffError } = await supabase
+      .from('profiles')
+      .select('id, name')
+      .eq('role', 'staff')
+      .order('name', { ascending: true })
+
+    if (staffError) {
+      setPermissionsError(staffError.message)
+      setPermissionsLoading(false)
+      return
+    }
+
+    const nextStaffUsers = staffData || []
+    setStaffUsers(nextStaffUsers)
+
+    if (nextStaffUsers.length === 0) {
+      setStaffExportAccess({})
+      setPermissionsLoading(false)
+      return
+    }
+
+    const staffIds = nextStaffUsers.map((staffUser) => staffUser.id)
+    const { data: accessData, error: accessError } = await supabase
+      .from('export_permissions')
+      .select('user_id')
+      .eq('is_active', true)
+      .in('user_id', staffIds)
+
+    if (accessError) {
+      setPermissionsError(accessError.message)
+      setPermissionsLoading(false)
+      return
+    }
+
+    const nextAccessMap = {}
+    for (const row of accessData || []) {
+      nextAccessMap[row.user_id] = true
+    }
+    setStaffExportAccess(nextAccessMap)
+    setPermissionsLoading(false)
+  }
+
+  async function fetchExportHistory() {
+    if (!user || user.role !== 'admin') return
+
+    setExportLogsLoading(true)
+    setExportLogsError(null)
+
+    const { data: logsData, error: logsError } = await supabase
+      .from('export_logs')
+      .select('id, exported_by, month_year, record_count, exported_at')
+      .order('exported_at', { ascending: false })
+
+    if (logsError) {
+      setExportLogsError(logsError.message)
+      setExportLogsLoading(false)
+      return
+    }
+
+    const logs = logsData || []
+    const exporterIds = [...new Set(logs.map((log) => log.exported_by).filter(Boolean))]
+    let nameMap = {}
+
+    if (exporterIds.length > 0) {
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, name')
+        .in('id', exporterIds)
+
+      if (profileError) {
+        setExportLogsError(profileError.message)
+      } else {
+        nameMap = (profileData || []).reduce((acc, profile) => {
+          acc[profile.id] = profile.name
+          return acc
+        }, {})
+      }
+    }
+
+    setExportLogs(
+      logs.map((log) => ({
+        ...log,
+        exporterName: nameMap[log.exported_by] || log.exported_by
+      }))
+    )
+    setExportLogsLoading(false)
+  }
+
+  async function handleToggleExportPermission(staffUserId) {
+    if (!user || user.role !== 'admin') return
+
+    setPermissionActionId(staffUserId)
+    setPermissionsError(null)
+
+    const hasActivePermission = Boolean(staffExportAccess[staffUserId])
+    if (hasActivePermission) {
+      const { error } = await supabase
+        .from('export_permissions')
+        .update({ is_active: false })
+        .eq('user_id', staffUserId)
+        .eq('is_active', true)
+
+      if (error) {
+        setPermissionsError(error.message)
+        setPermissionActionId(null)
+        return
+      }
+    } else {
+      const { error } = await supabase
+        .from('export_permissions')
+        .insert({
+          user_id: staffUserId,
+          is_active: true,
+          granted_by: user.id
+        })
+
+      if (error) {
+        setPermissionsError(error.message)
+        setPermissionActionId(null)
+        return
+      }
+    }
+
+    await fetchStaffExportPermissions()
+    setPermissionActionId(null)
   }
 
   useEffect(() => {
@@ -80,13 +251,44 @@ function App() {
     }
   }, [])
 
+  useEffect(() => {
+    if (!user) {
+      setCanExport(false)
+      setExportPickerOpen(false)
+      setExportError(null)
+      setStaffUsers([])
+      setStaffExportAccess({})
+      setPermissionsError(null)
+      setPermissionActionId(null)
+      setExportLogs([])
+      setExportLogsError(null)
+      return
+    }
+
+    if (!user.role) return
+
+    fetchUserExportPermission(user)
+
+    if (user.role === 'admin') {
+      fetchStaffExportPermissions()
+      fetchExportHistory()
+    } else {
+      setStaffUsers([])
+      setStaffExportAccess({})
+      setPermissionsError(null)
+      setPermissionActionId(null)
+      setExportLogs([])
+      setExportLogsError(null)
+    }
+  }, [user?.id, user?.role])
+
   async function fetchDocuments() {
     if (!user) return
     setDocLoading(true)
     setDocError(null)
     const { data, error } = await supabase
       .from('documents')
-      .select('id, title, description, reference, status, due_date, status_updated_at, created_at, created_by')
+      .select('id, title, description, reference, amount, status, due_date, status_updated_at, created_at, created_by')
       .order('created_at', { ascending: false })
     setDocLoading(false)
     if (error) {
@@ -102,7 +304,8 @@ function App() {
       .from('documents')
       .update({
         title: editTitle,
-        description: editDescription || null
+        description: editDescription || null,
+        amount: parseFloat(editAmount)
       })
       .eq('id', id)
 
@@ -118,6 +321,7 @@ function App() {
     })
 
     setEditingId(null)
+    setEditAmount('')
     setEditStatus('pending')
     setEditDueDate('')
     fetchDocuments()
@@ -158,12 +362,14 @@ function App() {
     setEditingId(doc.id)
     setEditTitle(doc.title || '')
     setEditDescription(doc.description || '')
+    setEditAmount(doc.amount != null ? String(doc.amount) : '')
     setEditStatus(doc.status || 'pending')
     setEditDueDate(toDateInputValue(doc.due_date))
   }
 
   function cancelEdit() {
     setEditingId(null)
+    setEditAmount('')
     setEditStatus('pending')
     setEditDueDate('')
   }
@@ -279,6 +485,7 @@ function App() {
         reference: refValue,
         title,
         description: description || null,
+        amount: parseFloat(amount),
         status,
         due_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
         created_by: user.id
@@ -322,6 +529,7 @@ function App() {
       setTitle('')
       setDescription('')
       setReference('')
+      setAmount('')
       setStatus('pending')
     }
   }
@@ -349,6 +557,70 @@ function App() {
 
   async function handleLogout() {
     await supabase.auth.signOut()
+  }
+
+  async function handleExportMonthlyReport() {
+    if (!user || !canExport) return
+
+    const monthNumber = Number(selectedExportMonth)
+    const yearNumber = Number(selectedExportYear)
+    if (!monthNumber || !yearNumber) {
+      setExportError('Select a valid month and year.')
+      return
+    }
+
+    setExportLoading(true)
+    setExportError(null)
+
+    try {
+      const filteredDocs = documents.filter((doc) => {
+        if (!doc.created_at) return false
+        const createdAt = new Date(doc.created_at)
+        return createdAt.getFullYear() === yearNumber && createdAt.getMonth() + 1 === monthNumber
+      })
+
+      const monthlyTotalAmount = filteredDocs.reduce((sum, doc) => sum + (Number(doc.amount) || 0), 0)
+      const reportRows = [
+        ['Reference', 'Title', 'Description', 'Amount', 'Status', 'Due Date', 'Created At'],
+        ...filteredDocs.map((doc) => ([
+          doc.reference || '',
+          doc.title || '',
+          doc.description || '',
+          formatAmount(doc.amount),
+          formatStatusForDisplay(doc.status),
+          doc.due_date ? new Date(doc.due_date).toLocaleDateString() : '',
+          doc.created_at ? new Date(doc.created_at).toLocaleString() : ''
+        ])),
+        [],
+        ['TOTAL DOCUMENTS', filteredDocs.length],
+        ['TOTAL AMOUNT', formatAmount(monthlyTotalAmount)]
+      ]
+
+      const workbook = XLSX.utils.book_new()
+      const reportSheet = XLSX.utils.aoa_to_sheet(reportRows)
+
+      XLSX.utils.book_append_sheet(workbook, reportSheet, 'Monthly Report')
+
+      const paddedMonth = String(monthNumber).padStart(2, '0')
+      XLSX.writeFile(workbook, `monthly-report-${yearNumber}-${paddedMonth}.xlsx`)
+
+      const { error: exportLogError } = await supabase.from('export_logs').insert({
+        exported_by: user.id,
+        month_year: `${selectedExportMonth}/${selectedExportYear}`,
+        record_count: filteredDocs.length,
+        exported_at: new Date().toISOString()
+      })
+      if (exportLogError) throw new Error(exportLogError.message)
+
+      setExportPickerOpen(false)
+      if (user.role === 'admin') {
+        fetchExportHistory()
+      }
+    } catch (err) {
+      setExportError(err?.message || 'Failed to export report.')
+    } finally {
+      setExportLoading(false)
+    }
   }
 
   function getDueStatus(dueDate) {
@@ -395,6 +667,15 @@ function App() {
     })
   }
 
+  function formatAmount(value) {
+    const number = Number(value)
+    if (Number.isNaN(number)) return '0.00'
+    return number.toLocaleString(undefined, {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    })
+  }
+
   function getDescriptionExcerpt(value) {
     if (!value) return 'No description provided.'
     const text = value.replace(/\s+/g, ' ').trim()
@@ -435,8 +716,33 @@ function App() {
 
   const overdueCount = documents.filter(isDocOverdue).length
   const dueSoonCount = documents.filter(isDueSoon).length
+  const sentCount = documents.filter((doc) => doc.status === 'completed').length
+  const totalAmount = documents.reduce((sum, doc) => sum + (Number(doc.amount) || 0), 0)
   const userRole = user?.role === 'admin' ? 'admin' : 'staff'
   const displayName = user?.name || user?.email || 'Unknown User'
+  const monthOptions = [
+    { value: '1', label: 'January' },
+    { value: '2', label: 'February' },
+    { value: '3', label: 'March' },
+    { value: '4', label: 'April' },
+    { value: '5', label: 'May' },
+    { value: '6', label: 'June' },
+    { value: '7', label: 'July' },
+    { value: '8', label: 'August' },
+    { value: '9', label: 'September' },
+    { value: '10', label: 'October' },
+    { value: '11', label: 'November' },
+    { value: '12', label: 'December' }
+  ]
+  const exportYearOptions = [
+    ...new Set([
+      String(new Date().getFullYear()),
+      ...documents
+        .map((doc) => new Date(doc.created_at).getFullYear())
+        .filter((year) => !Number.isNaN(year))
+        .map(String)
+    ])
+  ].sort((a, b) => Number(b) - Number(a))
 
   if (loading) {
     return (
@@ -480,7 +786,50 @@ function App() {
             <p className="kpi-label">Due Soon</p>
             <p className="kpi-value">{dueSoonCount}</p>
           </article>
+          <article className="kpi-card">
+            <p className="kpi-label">Total Sent</p>
+            <p className="kpi-value">{sentCount}</p>
+          </article>
+          <article className="kpi-card">
+            <p className="kpi-label">Total Amount</p>
+            <p className="kpi-value">{formatAmount(totalAmount)}</p>
+          </article>
         </section>
+
+        {userRole === 'admin' && (
+          <section className="panel export-permissions-panel">
+            <div className="panel-heading">
+              <h2>Export Permissions</h2>
+              <p>Grant or revoke export access for staff users.</p>
+            </div>
+            {permissionsError && <p className="error-msg">{permissionsError}</p>}
+            {permissionsLoading && <p className="loading-msg">Loading permissions...</p>}
+            {!permissionsLoading && staffUsers.length === 0 && (
+              <p className="empty-msg">No staff users found.</p>
+            )}
+            {!permissionsLoading && staffUsers.length > 0 && (
+              <ul className="permission-list">
+                {staffUsers.map((staffUser) => {
+                  const hasAccess = Boolean(staffExportAccess[staffUser.id])
+                  const buttonLabel = hasAccess ? 'Revoke Access' : 'Grant Access'
+                  return (
+                    <li key={staffUser.id} className="permission-item">
+                      <span className="permission-user-name">{staffUser.name || staffUser.id}</span>
+                      <button
+                        type="button"
+                        className={`btn btn-small ${hasAccess ? 'btn-danger' : 'btn-primary'}`}
+                        disabled={permissionActionId === staffUser.id}
+                        onClick={() => handleToggleExportPermission(staffUser.id)}
+                      >
+                        {permissionActionId === staffUser.id ? 'Saving...' : buttonLabel}
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </section>
+        )}
 
         <section className="panel create-panel">
           <div className="panel-heading">
@@ -518,6 +867,18 @@ function App() {
               />
             </div>
             <div className="form-group">
+              <label htmlFor="amount">Amount</label>
+              <input
+                id="amount"
+                type="number"
+                min="0.01"
+                step="0.01"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                required
+              />
+            </div>
+            <div className="form-group">
               <label htmlFor="status">Status</label>
               <select id="status" value={status} onChange={(e) => setStatus(e.target.value)}>
                 <option value="pending">Pending</option>
@@ -538,7 +899,63 @@ function App() {
               <h2>Documents</h2>
               <p>Search, filter, edit, and monitor activity inline.</p>
             </div>
+            {canExport && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={() => {
+                  setExportError(null)
+                  setExportPickerOpen((prev) => !prev)
+                }}
+              >
+                {exportPickerOpen ? 'Close Export' : 'Export Monthly Report'}
+              </button>
+            )}
           </div>
+
+          {canExport && exportPickerOpen && (
+            <div className="export-picker">
+              <div className="export-picker-controls">
+                <div className="form-group export-control">
+                  <label htmlFor="export-month">Month</label>
+                  <select
+                    id="export-month"
+                    value={selectedExportMonth}
+                    onChange={(e) => setSelectedExportMonth(e.target.value)}
+                  >
+                    {monthOptions.map((month) => (
+                      <option key={month.value} value={month.value}>
+                        {month.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="form-group export-control">
+                  <label htmlFor="export-year">Year</label>
+                  <select
+                    id="export-year"
+                    value={selectedExportYear}
+                    onChange={(e) => setSelectedExportYear(e.target.value)}
+                  >
+                    {exportYearOptions.map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-primary export-confirm-btn"
+                  onClick={handleExportMonthlyReport}
+                  disabled={exportLoading}
+                >
+                  {exportLoading ? 'Exporting...' : 'Confirm Export'}
+                </button>
+              </div>
+              {exportError && <p className="error-msg">{exportError}</p>}
+            </div>
+          )}
 
           <div className="controls-row">
             <div className="control-field">
@@ -605,6 +1022,17 @@ function App() {
                           />
                         </div>
                         <div className="form-group">
+                          <label htmlFor={`edit-amount-${doc.id}`}>Amount</label>
+                          <input
+                            id={`edit-amount-${doc.id}`}
+                            type="number"
+                            min="0.01"
+                            step="0.01"
+                            value={editAmount}
+                            onChange={(e) => setEditAmount(e.target.value)}
+                          />
+                        </div>
+                        <div className="form-group">
                           <label htmlFor={`edit-status-${doc.id}`}>Status</label>
                           <select
                             id={`edit-status-${doc.id}`}
@@ -648,6 +1076,7 @@ function App() {
                         <p className={`document-due ${dueStatus === 'overdue' ? 'due-overdue' : ''}`}>
                           Due Date: {formatDueDate(doc.due_date)} ({getDueText(doc.due_date)})
                         </p>
+                        <p className="document-amount">Amount: {formatAmount(doc.amount)}</p>
                         <p className="document-description">{getDescriptionExcerpt(doc.description)}</p>
 
                         <div className="status-control">
@@ -715,6 +1144,32 @@ function App() {
             </div>
           )}
         </section>
+
+        {userRole === 'admin' && (
+          <section className="panel export-history-panel">
+            <div className="panel-heading">
+              <h2>Export History</h2>
+              <p>Who exported, when, and how many records were included.</p>
+            </div>
+            {exportLogsError && <p className="error-msg">{exportLogsError}</p>}
+            {exportLogsLoading && <p className="loading-msg">Loading export history...</p>}
+            {!exportLogsLoading && exportLogs.length === 0 && (
+              <p className="empty-msg">No export history yet.</p>
+            )}
+            {!exportLogsLoading && exportLogs.length > 0 && (
+              <ul className="export-history-list">
+                {exportLogs.map((log) => (
+                  <li key={log.id} className="export-history-item">
+                    <p className="export-history-primary">{log.exporterName || 'Unknown User'}</p>
+                    <p className="export-history-meta">
+                      {log.month_year} | {log.record_count} record(s) | {new Date(log.exported_at).toLocaleString()}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
       </main>
     </div>
   )
