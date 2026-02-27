@@ -347,6 +347,34 @@ select:focus {
   margin-bottom: 0.4rem;
 }
 
+.tab-switcher {
+  display: inline-flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.3rem;
+  border: 1px solid #d4dbe6;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.tab-btn {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: #334155;
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+}
+
+.tab-btn-active {
+  border-color: var(--primary);
+  background: rgba(79, 70, 229, 0.12);
+  color: #312e81;
+}
+
 .export-picker {
   margin: 1rem 0 1.1rem;
   padding: 0.95rem;
@@ -417,18 +445,44 @@ select:focus {
 
 .card-top-row {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: flex-start;
   gap: 0.75rem;
 }
 
+.document-type-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.22rem 0.55rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.doc-type-third-party {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.doc-type-claims {
+  background: #e2e8f0;
+  color: #475569;
+}
+
 .document-reference {
   margin: 0;
-  font-size: 0.82rem;
-  font-weight: 700;
+  font-size: 0.86rem;
+  font-weight: 600;
   color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
+}
+
+.document-batch {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #64748b;
 }
 
 .document-title {
@@ -450,6 +504,11 @@ select:focus {
   font-size: 0.9rem;
   color: #1e293b;
   font-weight: 700;
+}
+
+.status-row {
+  display: flex;
+  justify-content: flex-start;
 }
 
 .due-overdue {
@@ -642,6 +701,14 @@ select:focus {
 
   .controls-row {
     gap: 0.65rem;
+  }
+
+  .tab-switcher {
+    width: 100%;
+  }
+
+  .tab-btn {
+    flex: 1 1 0;
   }
 
   .export-picker-controls {

@@ -19,14 +19,19 @@ function App() {
   const [documents, setDocuments] = useState([])
   const [docLoading, setDocLoading] = useState(false)
   const [docError, setDocError] = useState(null)
-  const [title, setTitle] = useState('')
+  const [beneficiary, setBeneficiary] = useState('')
   const [description, setDescription] = useState('')
   const [reference, setReference] = useState('')
+  const [batchNumber, setBatchNumber] = useState('')
   const [amount, setAmount] = useState('')
   const [status, setStatus] = useState('pending')
+  const [dueDate, setDueDate] = useState('')
+  const [activeTab, setActiveTab] = useState('third_party')
   const [submitLoading, setSubmitLoading] = useState(false)
   const [editingId, setEditingId] = useState(null)
-  const [editTitle, setEditTitle] = useState('')
+  const [editBeneficiary, setEditBeneficiary] = useState('')
+  const [editReference, setEditReference] = useState('')
+  const [editBatchNumber, setEditBatchNumber] = useState('')
   const [editDescription, setEditDescription] = useState('')
   const [editAmount, setEditAmount] = useState('')
   const [editStatus, setEditStatus] = useState('pending')
@@ -288,7 +293,7 @@ function App() {
     setDocError(null)
     const { data, error } = await supabase
       .from('documents')
-      .select('id, title, description, reference, amount, status, due_date, status_updated_at, created_at, created_by')
+      .select('id, reference, beneficiary, description, status, due_date, date_out, status_updated_at, created_at, created_by, amount, document_type, batch_number')
       .order('created_at', { ascending: false })
     setDocLoading(false)
     if (error) {
@@ -300,12 +305,37 @@ function App() {
 
   async function updateDocumentDetails(id) {
     setDocError(null)
+    const beneficiaryValue = editBeneficiary.trim()
+    const referenceValue = editReference.trim()
+    const batchValue = editBatchNumber.trim()
+    const amountValue = parseFloat(editAmount)
+
+    if (!beneficiaryValue) {
+      setDocError('Beneficiary is required')
+      return false
+    }
+    if (!referenceValue) {
+      setDocError('Reference number is required')
+      return false
+    }
+    if (!batchValue) {
+      setDocError('Batch number is required')
+      return false
+    }
+    if (Number.isNaN(amountValue) || amountValue <= 0) {
+      setDocError('Amount must be a positive number')
+      return false
+    }
+
     const { error } = await supabase
       .from('documents')
       .update({
-        title: editTitle,
+        beneficiary: beneficiaryValue,
+        reference: referenceValue,
+        batch_number: batchValue,
         description: editDescription || null,
-        amount: parseFloat(editAmount)
+        amount: amountValue,
+        due_date: editDueDate ? new Date(editDueDate).toISOString() : null
       })
       .eq('id', id)
 
@@ -321,6 +351,10 @@ function App() {
     })
 
     setEditingId(null)
+    setEditBeneficiary('')
+    setEditReference('')
+    setEditBatchNumber('')
+    setEditDescription('')
     setEditAmount('')
     setEditStatus('pending')
     setEditDueDate('')
@@ -360,7 +394,9 @@ function App() {
 
   function startEdit(doc) {
     setEditingId(doc.id)
-    setEditTitle(doc.title || '')
+    setEditBeneficiary(doc.beneficiary || '')
+    setEditReference(doc.reference || '')
+    setEditBatchNumber(doc.batch_number || '')
     setEditDescription(doc.description || '')
     setEditAmount(doc.amount != null ? String(doc.amount) : '')
     setEditStatus(doc.status || 'pending')
@@ -369,6 +405,10 @@ function App() {
 
   function cancelEdit() {
     setEditingId(null)
+    setEditBeneficiary('')
+    setEditReference('')
+    setEditBatchNumber('')
+    setEditDescription('')
     setEditAmount('')
     setEditStatus('pending')
     setEditDueDate('')
@@ -409,6 +449,7 @@ function App() {
       .from('documents')
       .update({
         status: newStatus,
+        date_out: newStatus === 'completed' ? new Date().toISOString() : null,
         status_updated_at: new Date().toISOString()
       })
       .eq('id', id)
@@ -478,17 +519,34 @@ function App() {
       setDocError('Reference number is required')
       return false
     }
+    const beneficiaryValue = beneficiary.trim()
+    if (!beneficiaryValue) {
+      setDocError('Beneficiary is required')
+      return false
+    }
+    const batchValue = batchNumber.trim()
+    if (!batchValue) {
+      setDocError('Batch number is required')
+      return false
+    }
+    const amountValue = parseFloat(amount)
+    if (Number.isNaN(amountValue) || amountValue <= 0) {
+      setDocError('Amount must be a positive number')
+      return false
+    }
 
     const { data: newDoc, error } = await supabase
       .from('documents')
       .insert({
         reference: refValue,
-        title,
+        beneficiary: beneficiaryValue,
+        batch_number: batchValue,
         description: description || null,
-        amount: parseFloat(amount),
+        amount: amountValue,
         status,
-        due_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-        created_by: user.id
+        due_date: dueDate ? new Date(dueDate).toISOString() : null,
+        created_by: user.id,
+        document_type: activeTab
       })
       .select('id')
       .single()
@@ -516,8 +574,18 @@ function App() {
     e.preventDefault()
     setDocError(null)
 
+    if (!beneficiary || beneficiary.trim() === '') {
+      setDocError('Beneficiary is required')
+      return
+    }
+
     if (!reference || reference.trim() === '') {
       setDocError('Reference number is required')
+      return
+    }
+
+    if (!batchNumber || batchNumber.trim() === '') {
+      setDocError('Batch number is required')
       return
     }
 
@@ -526,11 +594,13 @@ function App() {
     setSubmitLoading(false)
 
     if (success) {
-      setTitle('')
+      setBeneficiary('')
       setDescription('')
       setReference('')
+      setBatchNumber('')
       setAmount('')
       setStatus('pending')
+      setDueDate('')
     }
   }
 
@@ -576,20 +646,29 @@ function App() {
       const filteredDocs = documents.filter((doc) => {
         if (!doc.created_at) return false
         const createdAt = new Date(doc.created_at)
-        return createdAt.getFullYear() === yearNumber && createdAt.getMonth() + 1 === monthNumber
+        return createdAt.getFullYear() === yearNumber &&
+          createdAt.getMonth() + 1 === monthNumber &&
+          doc.document_type === activeTab
       })
 
       const monthlyTotalAmount = filteredDocs.reduce((sum, doc) => sum + (Number(doc.amount) || 0), 0)
       const reportRows = [
-        ['Reference', 'Title', 'Description', 'Amount', 'Status', 'Due Date', 'Created At'],
+        ['Entry Date', 'Beneficiary', 'Description', 'PV No', 'Batch No', 'Amount', 'Date Out', 'Time Elapsed', 'Status'],
         ...filteredDocs.map((doc) => ([
-          doc.reference || '',
-          doc.title || '',
+          doc.created_at ? new Date(doc.created_at).toLocaleDateString() : '',
+          doc.beneficiary || '',
           doc.description || '',
+          doc.reference || '',
+          doc.batch_number || '',
           formatAmount(doc.amount),
-          formatStatusForDisplay(doc.status),
-          doc.due_date ? new Date(doc.due_date).toLocaleDateString() : '',
-          doc.created_at ? new Date(doc.created_at).toLocaleString() : ''
+          doc.date_out ? new Date(doc.date_out).toLocaleDateString() : '',
+          doc.date_out
+            ? `${Math.max(
+                0,
+                Math.ceil((new Date(doc.date_out).getTime() - new Date(doc.created_at).getTime()) / (1000 * 60 * 60 * 24))
+              )} days`
+            : '',
+          formatStatusForDisplay(doc.status)
         ])),
         [],
         ['TOTAL DOCUMENTS', filteredDocs.length],
@@ -602,7 +681,8 @@ function App() {
       XLSX.utils.book_append_sheet(workbook, reportSheet, 'Monthly Report')
 
       const paddedMonth = String(monthNumber).padStart(2, '0')
-      XLSX.writeFile(workbook, `monthly-report-${yearNumber}-${paddedMonth}.xlsx`)
+      const reportPrefix = activeTab === 'third_party' ? 'third-party-report' : 'claims-report'
+      XLSX.writeFile(workbook, `${reportPrefix}-${yearNumber}-${paddedMonth}.xlsx`)
 
       const { error: exportLogError } = await supabase.from('export_logs').insert({
         exported_by: user.id,
@@ -699,8 +779,20 @@ function App() {
     return { label: formatStatusForDisplay(doc.status), className: 'status-pending' }
   }
 
-  const filteredDocuments = documents.filter((doc) => {
-    const matchesSearch = !search.trim() || [doc.title, doc.description, doc.reference]
+  function formatDocumentType(value) {
+    if (value === 'third_party') return 'Third Party'
+    if (value === 'claims') return 'Claims'
+    return value
+  }
+
+  function getDocumentTypeClassName(value) {
+    return value === 'third_party' ? 'doc-type-third-party' : 'doc-type-claims'
+  }
+
+  const activeTabDocuments = documents.filter((doc) => doc.document_type === activeTab)
+
+  const filteredDocuments = activeTabDocuments.filter((doc) => {
+    const matchesSearch = !search.trim() || [doc.beneficiary, doc.description, doc.reference, doc.batch_number]
       .filter(Boolean)
       .some((value) => value.toLowerCase().includes(search.trim().toLowerCase()))
 
@@ -779,6 +871,10 @@ function App() {
             <p className="kpi-value">{documents.length}</p>
           </article>
           <article className="kpi-card">
+            <p className="kpi-label">Total Amount</p>
+            <p className="kpi-value">{formatAmount(totalAmount)}</p>
+          </article>
+          <article className="kpi-card">
             <p className="kpi-label">Overdue</p>
             <p className="kpi-value value-overdue">{overdueCount}</p>
           </article>
@@ -789,10 +885,6 @@ function App() {
           <article className="kpi-card">
             <p className="kpi-label">Total Sent</p>
             <p className="kpi-value">{sentCount}</p>
-          </article>
-          <article className="kpi-card">
-            <p className="kpi-label">Total Amount</p>
-            <p className="kpi-value">{formatAmount(totalAmount)}</p>
           </article>
         </section>
 
@@ -838,23 +930,34 @@ function App() {
           </div>
           <form className="create-form" onSubmit={handleSubmitDocument}>
             <div className="form-group">
-              <label htmlFor="title">Title</label>
+              <label htmlFor="beneficiary">Beneficiary</label>
               <input
-                id="title"
+                id="beneficiary"
                 type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                value={beneficiary}
+                onChange={(e) => setBeneficiary(e.target.value)}
                 required
               />
             </div>
             <div className="form-group">
-              <label htmlFor="reference">Reference</label>
+              <label htmlFor="reference">Reference / PV No</label>
               <input
                 id="reference"
                 type="text"
                 placeholder="e.g. DOC-2026-001"
                 value={reference}
                 onChange={(e) => setReference(e.target.value)}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="batch-number">Batch Number</label>
+              <input
+                id="batch-number"
+                type="text"
+                value={batchNumber}
+                onChange={(e) => setBatchNumber(e.target.value)}
+                required
               />
             </div>
             <div className="form-group">
@@ -886,6 +989,15 @@ function App() {
                 <option value="completed">Sent</option>
               </select>
             </div>
+            <div className="form-group">
+              <label htmlFor="due-date">Due Date</label>
+              <input
+                id="due-date"
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+              />
+            </div>
             {docError && <p className="error-msg">{docError}</p>}
             <button type="submit" className="btn btn-primary" disabled={submitLoading}>
               {submitLoading ? 'Adding...' : 'Add Document'}
@@ -894,6 +1006,23 @@ function App() {
         </section>
 
         <section className="panel documents-panel">
+          <div className="tab-switcher" role="tablist" aria-label="Document Type Tabs">
+            <button
+              type="button"
+              className={`tab-btn ${activeTab === 'third_party' ? 'tab-btn-active' : ''}`}
+              onClick={() => setActiveTab('third_party')}
+            >
+              Third Party
+            </button>
+            <button
+              type="button"
+              className={`tab-btn ${activeTab === 'claims' ? 'tab-btn-active' : ''}`}
+              onClick={() => setActiveTab('claims')}
+            >
+              Claims
+            </button>
+          </div>
+
           <div className="panel-heading panel-heading-row">
             <div>
               <h2>Documents</h2>
@@ -963,7 +1092,7 @@ function App() {
               <input
                 id="search-documents"
                 type="text"
-                placeholder="Search by title, description, or reference"
+                placeholder="Search by beneficiary, description, reference, or batch number"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
@@ -987,12 +1116,12 @@ function App() {
           {docError && <p className="error-msg">{docError}</p>}
 
           {docLoading && <p className="loading-msg">Loading documents...</p>}
-          {!docLoading && documents.length === 0 && <p className="empty-msg">No documents yet.</p>}
-          {!docLoading && documents.length > 0 && filteredDocuments.length === 0 && (
+          {!docLoading && activeTabDocuments.length === 0 && <p className="empty-msg">No documents yet.</p>}
+          {!docLoading && activeTabDocuments.length > 0 && filteredDocuments.length === 0 && (
             <p className="empty-msg">No documents match your search or filter.</p>
           )}
 
-          {!docLoading && documents.length > 0 && filteredDocuments.length > 0 && (
+          {!docLoading && activeTabDocuments.length > 0 && filteredDocuments.length > 0 && (
             <div className="document-grid">
               {filteredDocuments.map((doc) => {
                 const badge = getBadgeForDocument(doc)
@@ -1003,13 +1132,34 @@ function App() {
                       <div className="edit-panel">
                         <h3 className="edit-title">Edit Document</h3>
                         <div className="form-group">
-                          <label htmlFor={`edit-title-${doc.id}`}>Title</label>
+                          <label htmlFor={`edit-beneficiary-${doc.id}`}>Beneficiary</label>
                           <input
-                            id={`edit-title-${doc.id}`}
+                            id={`edit-beneficiary-${doc.id}`}
                             type="text"
-                            value={editTitle}
-                            onChange={(e) => setEditTitle(e.target.value)}
+                            value={editBeneficiary}
+                            onChange={(e) => setEditBeneficiary(e.target.value)}
                             autoFocus
+                            required
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label htmlFor={`edit-reference-${doc.id}`}>Reference / PV No</label>
+                          <input
+                            id={`edit-reference-${doc.id}`}
+                            type="text"
+                            value={editReference}
+                            onChange={(e) => setEditReference(e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label htmlFor={`edit-batch-${doc.id}`}>Batch Number</label>
+                          <input
+                            id={`edit-batch-${doc.id}`}
+                            type="text"
+                            value={editBatchNumber}
+                            onChange={(e) => setEditBatchNumber(e.target.value)}
+                            required
                           />
                         </div>
                         <div className="form-group">
@@ -1030,6 +1180,7 @@ function App() {
                             step="0.01"
                             value={editAmount}
                             onChange={(e) => setEditAmount(e.target.value)}
+                            required
                           />
                         </div>
                         <div className="form-group">
@@ -1069,15 +1220,21 @@ function App() {
                     ) : (
                       <>
                         <div className="card-top-row">
-                          <p className="document-reference">Reference: {doc.reference || 'N/A'}</p>
+                          <span className={`document-type-pill ${getDocumentTypeClassName(doc.document_type)}`}>
+                            {formatDocumentType(doc.document_type)}
+                          </span>
+                        </div>
+                        <h3 className="document-title">{doc.beneficiary || 'N/A'}</h3>
+                        <p className="document-reference">Reference / PV No: {doc.reference || 'N/A'}</p>
+                        <p className="document-batch">Batch Number: {doc.batch_number || 'N/A'}</p>
+                        <p className="document-description">{getDescriptionExcerpt(doc.description)}</p>
+                        <p className="document-amount">Amount: {formatAmount(doc.amount)}</p>
+                        <div className="status-row">
                           <span className={`status-pill ${badge.className}`}>{badge.label}</span>
                         </div>
-                        <h3 className="document-title">{doc.title}</h3>
                         <p className={`document-due ${dueStatus === 'overdue' ? 'due-overdue' : ''}`}>
                           Due Date: {formatDueDate(doc.due_date)} ({getDueText(doc.due_date)})
                         </p>
-                        <p className="document-amount">Amount: {formatAmount(doc.amount)}</p>
-                        <p className="document-description">{getDescriptionExcerpt(doc.description)}</p>
 
                         <div className="status-control">
                           <label htmlFor={`status-${doc.id}`}>Status</label>
