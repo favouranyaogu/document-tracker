@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { createClient } from '@supabase/supabase-js'
 import * as XLSX from 'xlsx'
@@ -30,6 +30,14 @@ function App() {
   const [submitLoading, setSubmitLoading] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState(null)
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false)
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false)
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmNewPassword, setConfirmNewPassword] = useState('')
+  const [passwordError, setPasswordError] = useState('')
+  const [passwordSuccess, setPasswordSuccess] = useState('')
+  const [passwordUpdating, setPasswordUpdating] = useState(false)
   const [editBeneficiary, setEditBeneficiary] = useState('')
   const [editReference, setEditReference] = useState('')
   const [editBatchNumber, setEditBatchNumber] = useState('')
@@ -42,6 +50,8 @@ function App() {
   const [historyExpandedId, setHistoryExpandedId] = useState(null)
   const [activityLogs, setActivityLogs] = useState([])
   const [activityLogUsers, setActivityLogUsers] = useState({})
+  const [editCounts, setEditCounts] = useState({})
+  const [editedCounts, setEditedCounts] = useState({})
   const [permissionMessages, setPermissionMessages] = useState({})
   const [canExport, setCanExport] = useState(false)
   const [exportPickerOpen, setExportPickerOpen] = useState(false)
@@ -57,6 +67,8 @@ function App() {
   const [exportLogs, setExportLogs] = useState([])
   const [exportLogsLoading, setExportLogsLoading] = useState(false)
   const [exportLogsError, setExportLogsError] = useState(null)
+  const accountMenuRef = useRef(null)
+  const passwordCloseTimerRef = useRef(null)
 
   async function getUserWithProfile(authUser) {
     if (!authUser) return null
@@ -259,10 +271,41 @@ function App() {
   }, [])
 
   useEffect(() => {
+    function handleDocumentClick(event) {
+      if (!accountMenuRef.current) return
+      if (!accountMenuRef.current.contains(event.target)) {
+        setAccountMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleDocumentClick)
+    return () => {
+      document.removeEventListener('mousedown', handleDocumentClick)
+    }
+  }, [])
+
+  useEffect(() => (
+    () => {
+      if (passwordCloseTimerRef.current) {
+        clearTimeout(passwordCloseTimerRef.current)
+      }
+    }
+  ), [])
+
+  useEffect(() => {
     if (!user) {
+      setAccountMenuOpen(false)
+      setPasswordModalOpen(false)
+      setPasswordError('')
+      setPasswordSuccess('')
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmNewPassword('')
       setCanExport(false)
       setExportPickerOpen(false)
       setExportError(null)
+      setEditCounts({})
+      setEditedCounts({})
       setStaffUsers([])
       setStaffExportAccess({})
       setPermissionsError(null)
@@ -302,7 +345,49 @@ function App() {
       setDocError(error.message)
       return
     }
-    setDocuments(data || [])
+    const nextDocuments = data || []
+    setDocuments(nextDocuments)
+    fetchEditCounts(nextDocuments)
+  }
+
+  async function fetchEditCounts(nextDocuments) {
+    if (!user) {
+      setEditCounts({})
+      setEditedCounts({})
+      return
+    }
+
+    const docIds = (nextDocuments || []).map((doc) => doc.id)
+    if (docIds.length === 0) {
+      setEditCounts({})
+      setEditedCounts({})
+      return
+    }
+
+    const { data: editData } = await supabase
+      .from('activity_logs')
+      .select('document_id')
+      .eq('action', 'edited')
+      .eq('user_id', user.id)
+      .in('document_id', docIds)
+
+    const counts = (editData || []).reduce((acc, log) => {
+      acc[log.document_id] = (acc[log.document_id] || 0) + 1
+      return acc
+    }, {})
+    setEditCounts(counts)
+
+    const { data: allEditData } = await supabase
+      .from('activity_logs')
+      .select('document_id')
+      .eq('action', 'edited')
+      .in('document_id', docIds)
+
+    const allCounts = (allEditData || []).reduce((acc, log) => {
+      acc[log.document_id] = (acc[log.document_id] || 0) + 1
+      return acc
+    }, {})
+    setEditedCounts(allCounts)
   }
 
   async function updateDocumentDetails(id) {
@@ -662,7 +747,76 @@ function App() {
   }
 
   async function handleLogout() {
+    setAccountMenuOpen(false)
     await supabase.auth.signOut()
+  }
+
+  function closePasswordModal() {
+    setPasswordModalOpen(false)
+    setPasswordError('')
+    setPasswordSuccess('')
+    setCurrentPassword('')
+    setNewPassword('')
+    setConfirmNewPassword('')
+    setPasswordUpdating(false)
+    if (passwordCloseTimerRef.current) {
+      clearTimeout(passwordCloseTimerRef.current)
+      passwordCloseTimerRef.current = null
+    }
+  }
+
+  function openPasswordModal() {
+    setAccountMenuOpen(false)
+    setPasswordModalOpen(true)
+    setPasswordError('')
+    setPasswordSuccess('')
+    setCurrentPassword('')
+    setNewPassword('')
+    setConfirmNewPassword('')
+  }
+
+  async function handlePasswordUpdate(e) {
+    e.preventDefault()
+    setPasswordError('')
+    setPasswordSuccess('')
+
+    if (newPassword.length < 8) {
+      setPasswordError('New password must be at least 8 characters.')
+      return
+    }
+    if (newPassword !== confirmNewPassword) {
+      setPasswordError('New password and confirm must match.')
+      return
+    }
+
+    setPasswordUpdating(true)
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: user.email,
+      password: currentPassword
+    })
+    if (signInError) {
+      setPasswordError('Current password is incorrect.')
+      setPasswordUpdating(false)
+      return
+    }
+
+    const { error: updateError } = await supabase.auth.updateUser({
+      password: newPassword
+    })
+    if (updateError) {
+      setPasswordError(updateError.message)
+      setPasswordUpdating(false)
+      return
+    }
+
+    setPasswordUpdating(false)
+    setPasswordSuccess('Password updated successfully.')
+    if (passwordCloseTimerRef.current) {
+      clearTimeout(passwordCloseTimerRef.current)
+    }
+    passwordCloseTimerRef.current = setTimeout(() => {
+      closePasswordModal()
+    }, 2000)
   }
 
   async function handleExportMonthlyReport() {
@@ -906,12 +1060,29 @@ function App() {
           </div>
         </div>
         <div className="nav-user">
-          <div className="user-identity">
-            <span className="user-name">{displayName}</span>
-            <span className={`role-badge role-badge-${userRole}`}>{userRole}</span>
+          <div className="account-menu" ref={accountMenuRef}>
+            <button
+              type="button"
+              className="account-trigger"
+              onClick={() => setAccountMenuOpen((prev) => !prev)}
+            >
+              <div className="user-identity">
+                <span className="user-name">{displayName}</span>
+                <span className={`role-badge role-badge-${userRole}`}>{userRole}</span>
+              </div>
+            </button>
+            {accountMenuOpen && (
+              <div className="account-dropdown">
+                <button type="button" className="account-menu-item" onClick={openPasswordModal}>
+                  Change Password
+                </button>
+                <button type="button" className="account-menu-item" onClick={handleLogout}>
+                  Logout
+                </button>
+              </div>
+            )}
           </div>
           <span className="user-email">{user?.email}</span>
-          <button type="button" className="btn btn-neutral" onClick={handleLogout}>Logout</button>
         </div>
       </header>
 
@@ -1185,6 +1356,8 @@ function App() {
               {filteredDocuments.map((doc) => {
                 const badge = getBadgeForDocument(doc)
                 const dueStatus = getDueStatus(doc.due_date)
+                const hasEdited = (editedCounts[doc.id] || 0) > 0
+                const hasReachedEditLimit = userRole === 'staff' && (editCounts[doc.id] || 0) >= 3
                 return (
                   <article key={doc.id} className="document-card">
                     {editingId === doc.id ? (
@@ -1291,6 +1464,7 @@ function App() {
                         <p className="document-amount">Amount: {formatAmount(doc.amount)}</p>
                         <div className="status-row">
                           <span className={`status-pill ${badge.className}`}>{badge.label}</span>
+                          {hasEdited && <span className="edited-pill">Edited</span>}
                         </div>
                         <p className={`document-due ${dueStatus === 'overdue' ? 'due-overdue' : ''}`}>
                           Due Date: {formatDueDate(doc.due_date)} ({getDueText(doc.due_date)})
@@ -1310,7 +1484,13 @@ function App() {
                         </div>
 
                         <div className="card-actions">
-                          <button type="button" className="btn btn-primary btn-small" onClick={() => handleEditClick(doc, userRole)}>
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-small"
+                            onClick={() => handleEditClick(doc, userRole)}
+                            disabled={hasReachedEditLimit}
+                            title={hasReachedEditLimit ? 'Edit limit reached. Contact your administrator.' : undefined}
+                          >
                             Edit
                           </button>
                           <button type="button" className="btn btn-danger btn-small" onClick={() => setDeleteConfirmId(doc.id)}>
@@ -1324,6 +1504,9 @@ function App() {
                             {historyExpandedId === doc.id ? 'Hide History' : 'View History'}
                           </button>
                         </div>
+                        {hasReachedEditLimit && (
+                          <p className="edit-limit-msg">Edit limit reached. Contact your administrator.</p>
+                        )}
                         {permissionMessages[doc.id] && (
                           <p className="inline-permission-msg">{permissionMessages[doc.id]}</p>
                         )}
@@ -1384,6 +1567,56 @@ function App() {
                   Cancel
                 </button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {passwordModalOpen && (
+          <div className="modal-overlay">
+            <div className="password-modal" role="dialog" aria-modal="true" aria-labelledby="change-password-title">
+              <h3 id="change-password-title" className="password-modal-title">Change Password</h3>
+              <form onSubmit={handlePasswordUpdate}>
+                <div className="form-group">
+                  <label htmlFor="current-password">Current Password</label>
+                  <input
+                    id="current-password"
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="new-password">New Password</label>
+                  <input
+                    id="new-password"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="confirm-new-password">Confirm New Password</label>
+                  <input
+                    id="confirm-new-password"
+                    type="password"
+                    value={confirmNewPassword}
+                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                    required
+                  />
+                </div>
+                {passwordError && <p className="error-msg">{passwordError}</p>}
+                {passwordSuccess && <p className="success-msg">{passwordSuccess}</p>}
+                <div className="password-modal-actions">
+                  <button type="submit" className="btn btn-primary" disabled={passwordUpdating}>
+                    {passwordUpdating ? 'Updating...' : 'Update Password'}
+                  </button>
+                  <button type="button" className="btn btn-neutral" onClick={closePasswordModal}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

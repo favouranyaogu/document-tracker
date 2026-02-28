@@ -98,6 +98,48 @@ body {
   justify-content: flex-end;
 }
 
+.account-menu {
+  position: relative;
+}
+
+.account-trigger {
+  border: none;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.account-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.4rem);
+  min-width: 180px;
+  background: #ffffff;
+  border: 1px solid #d7dfeb;
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 0.35rem;
+  z-index: 30;
+}
+
+.account-menu-item {
+  width: 100%;
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 0.55rem 0.65rem;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #1e293b;
+  cursor: pointer;
+}
+
+.account-menu-item:hover {
+  background: #eef2f7;
+}
+
 .user-identity {
   display: flex;
   align-items: center;
@@ -335,6 +377,20 @@ select:focus {
   font-weight: 600;
 }
 
+.edit-limit-msg {
+  margin: -0.15rem 0 0;
+  color: #7c3aed;
+  font-size: 0.84rem;
+  font-weight: 600;
+}
+
+.success-msg {
+  margin: 0.4rem 0 0.7rem;
+  color: #15803d;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
 .loading-msg,
 .empty-msg {
   margin: 0.6rem 0;
@@ -520,6 +576,21 @@ select:focus {
 .status-row {
   display: flex;
   justify-content: flex-start;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.edited-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0.62rem;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 800;
+  white-space: nowrap;
+  background: #e2e8f0;
+  color: #475569;
 }
 
 .due-overdue {
@@ -647,6 +718,30 @@ select:focus {
 
 .confirm-modal-actions {
   margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.password-modal {
+  width: min(480px, 100%);
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 1.1rem;
+}
+
+.password-modal-title {
+  margin: 0 0 0.8rem;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.password-modal-actions {
+  margin-top: 0.2rem;
   display: flex;
   justify-content: flex-end;
   gap: 0.65rem;
