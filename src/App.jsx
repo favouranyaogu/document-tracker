@@ -25,7 +25,7 @@ function App() {
   const [batchNumber, setBatchNumber] = useState('')
   const [amount, setAmount] = useState('')
   const [status, setStatus] = useState('pending')
-  const [dueDate, setDueDate] = useState('')
+  const [manualDocumentType, setManualDocumentType] = useState('')
   const [activeTab, setActiveTab] = useState('third_party')
   const [submitLoading, setSubmitLoading] = useState(false)
   const [editingId, setEditingId] = useState(null)
@@ -308,6 +308,7 @@ function App() {
     const beneficiaryValue = editBeneficiary.trim()
     const referenceValue = editReference.trim()
     const batchValue = editBatchNumber.trim()
+    const descriptionValue = editDescription.trim()
     const amountValue = parseFloat(editAmount)
 
     if (!beneficiaryValue) {
@@ -322,6 +323,10 @@ function App() {
       setDocError('Batch number is required')
       return false
     }
+    if (!descriptionValue) {
+      setDocError('Description is required.')
+      return false
+    }
     if (Number.isNaN(amountValue) || amountValue <= 0) {
       setDocError('Amount must be a positive number')
       return false
@@ -333,7 +338,7 @@ function App() {
         beneficiary: beneficiaryValue,
         reference: referenceValue,
         batch_number: batchValue,
-        description: editDescription || null,
+        description: descriptionValue,
         amount: amountValue,
         due_date: editDueDate ? new Date(editDueDate).toISOString() : null
       })
@@ -529,6 +534,17 @@ function App() {
       setDocError('Batch number is required')
       return false
     }
+    const descriptionValue = description.trim()
+    if (!descriptionValue) {
+      setDocError('Description is required.')
+      return false
+    }
+    const detectedType = detectDocumentType(batchValue)
+    const documentType = detectedType || manualDocumentType
+    if (!documentType) {
+      setDocError('Document type is required')
+      return false
+    }
     const amountValue = parseFloat(amount)
     if (Number.isNaN(amountValue) || amountValue <= 0) {
       setDocError('Amount must be a positive number')
@@ -541,12 +557,12 @@ function App() {
         reference: refValue,
         beneficiary: beneficiaryValue,
         batch_number: batchValue,
-        description: description || null,
+        description: descriptionValue,
         amount: amountValue,
         status,
-        due_date: dueDate ? new Date(dueDate).toISOString() : null,
+        due_date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
         created_by: user.id,
-        document_type: activeTab
+        document_type: documentType
       })
       .select('id')
       .single()
@@ -598,9 +614,9 @@ function App() {
       setDescription('')
       setReference('')
       setBatchNumber('')
+      setManualDocumentType('')
       setAmount('')
       setStatus('pending')
-      setDueDate('')
     }
   }
 
@@ -653,7 +669,7 @@ function App() {
 
       const monthlyTotalAmount = filteredDocs.reduce((sum, doc) => sum + (Number(doc.amount) || 0), 0)
       const reportRows = [
-        ['Entry Date', 'Beneficiary', 'Description', 'PV No', 'Batch No', 'Amount', 'Date Out', 'Time Elapsed', 'Status'],
+        ['Entry Date', 'Beneficiary', 'Description', 'Reference Number / Payment Voucher Number', 'Batch No', 'Amount', 'Date Out', 'Status'],
         ...filteredDocs.map((doc) => ([
           doc.created_at ? new Date(doc.created_at).toLocaleDateString() : '',
           doc.beneficiary || '',
@@ -662,12 +678,6 @@ function App() {
           doc.batch_number || '',
           formatAmount(doc.amount),
           doc.date_out ? new Date(doc.date_out).toLocaleDateString() : '',
-          doc.date_out
-            ? `${Math.max(
-                0,
-                Math.ceil((new Date(doc.date_out).getTime() - new Date(doc.created_at).getTime()) / (1000 * 60 * 60 * 24))
-              )} days`
-            : '',
           formatStatusForDisplay(doc.status)
         ])),
         [],
@@ -756,6 +766,13 @@ function App() {
     })
   }
 
+  function detectDocumentType(batchValue) {
+    const val = (batchValue || '').trim().toUpperCase()
+    if (val.startsWith('TPP') || val.startsWith('NCDF')) return 'third_party'
+    if (val.startsWith('SP')) return 'claims'
+    return null
+  }
+
   function getDescriptionExcerpt(value) {
     if (!value) return 'No description provided.'
     const text = value.replace(/\s+/g, ' ').trim()
@@ -790,6 +807,7 @@ function App() {
   }
 
   const activeTabDocuments = documents.filter((doc) => doc.document_type === activeTab)
+  const detectedDocumentType = detectDocumentType(batchNumber)
 
   const filteredDocuments = activeTabDocuments.filter((doc) => {
     const matchesSearch = !search.trim() || [doc.beneficiary, doc.description, doc.reference, doc.batch_number]
@@ -940,7 +958,7 @@ function App() {
               />
             </div>
             <div className="form-group">
-              <label htmlFor="reference">Reference / PV No</label>
+              <label htmlFor="reference">Reference Number / Payment Voucher Number</label>
               <input
                 id="reference"
                 type="text"
@@ -959,6 +977,22 @@ function App() {
                 onChange={(e) => setBatchNumber(e.target.value)}
                 required
               />
+              {detectedDocumentType ? (
+                <p className="detected-type-label">Detected: {formatDocumentType(detectedDocumentType)}</p>
+              ) : (
+                <div className="manual-type-select-wrap">
+                  <label htmlFor="manual-document-type">Select type</label>
+                  <select
+                    id="manual-document-type"
+                    value={manualDocumentType}
+                    onChange={(e) => setManualDocumentType(e.target.value)}
+                  >
+                    <option value="">Select type</option>
+                    <option value="third_party">Third Party</option>
+                    <option value="claims">Claims</option>
+                  </select>
+                </div>
+              )}
             </div>
             <div className="form-group">
               <label htmlFor="description">Description</label>
@@ -967,6 +1001,7 @@ function App() {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={3}
+                required
               />
             </div>
             <div className="form-group">
@@ -988,15 +1023,6 @@ function App() {
                 <option value="in_progress">In Progress</option>
                 <option value="completed">Sent</option>
               </select>
-            </div>
-            <div className="form-group">
-              <label htmlFor="due-date">Due Date</label>
-              <input
-                id="due-date"
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-              />
             </div>
             {docError && <p className="error-msg">{docError}</p>}
             <button type="submit" className="btn btn-primary" disabled={submitLoading}>
@@ -1143,7 +1169,7 @@ function App() {
                           />
                         </div>
                         <div className="form-group">
-                          <label htmlFor={`edit-reference-${doc.id}`}>Reference / PV No</label>
+                          <label htmlFor={`edit-reference-${doc.id}`}>Reference Number / Payment Voucher Number</label>
                           <input
                             id={`edit-reference-${doc.id}`}
                             type="text"
@@ -1169,6 +1195,7 @@ function App() {
                             value={editDescription}
                             onChange={(e) => setEditDescription(e.target.value)}
                             rows={3}
+                            required
                           />
                         </div>
                         <div className="form-group">
@@ -1225,7 +1252,7 @@ function App() {
                           </span>
                         </div>
                         <h3 className="document-title">{doc.beneficiary || 'N/A'}</h3>
-                        <p className="document-reference">Reference / PV No: {doc.reference || 'N/A'}</p>
+                        <p className="document-reference">Reference Number / Payment Voucher Number: {doc.reference || 'N/A'}</p>
                         <p className="document-batch">Batch Number: {doc.batch_number || 'N/A'}</p>
                         <p className="document-description">{getDescriptionExcerpt(doc.description)}</p>
                         <p className="document-amount">Amount: {formatAmount(doc.amount)}</p>

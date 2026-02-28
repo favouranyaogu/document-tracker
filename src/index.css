@@ -213,6 +213,17 @@ body {
   margin-bottom: 1rem;
 }
 
+.detected-type-label {
+  margin: 0.45rem 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.manual-type-select-wrap {
+  margin-top: 0.5rem;
+}
+
 label {
   display: block;
   margin-bottom: 0.35rem;
