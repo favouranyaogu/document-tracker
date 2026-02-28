@@ -29,6 +29,7 @@ function App() {
   const [activeTab, setActiveTab] = useState('third_party')
   const [submitLoading, setSubmitLoading] = useState(false)
   const [editingId, setEditingId] = useState(null)
+  const [deleteConfirmId, setDeleteConfirmId] = useState(null)
   const [editBeneficiary, setEditBeneficiary] = useState('')
   const [editReference, setEditReference] = useState('')
   const [editBatchNumber, setEditBatchNumber] = useState('')
@@ -40,6 +41,7 @@ function App() {
   const [filter, setFilter] = useState('all')
   const [historyExpandedId, setHistoryExpandedId] = useState(null)
   const [activityLogs, setActivityLogs] = useState([])
+  const [activityLogUsers, setActivityLogUsers] = useState({})
   const [permissionMessages, setPermissionMessages] = useState({})
   const [canExport, setCanExport] = useState(false)
   const [exportPickerOpen, setExportPickerOpen] = useState(false)
@@ -436,7 +438,25 @@ function App() {
       .eq('document_id', documentId)
       .order('created_at', { ascending: false })
     if (error) return
-    setActivityLogs(data || [])
+    const logs = data || []
+    setActivityLogs(logs)
+
+    const uniqueIds = [...new Set(logs.map((log) => log.user_id).filter(Boolean))]
+    if (uniqueIds.length === 0) {
+      setActivityLogUsers({})
+      return
+    }
+
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('id, name')
+      .in('id', uniqueIds)
+
+    const userMap = (profileData || []).reduce((acc, profile) => {
+      acc[profile.id] = profile.name
+      return acc
+    }, {})
+    setActivityLogUsers(userMap)
   }
 
   function toggleHistory(docId) {
@@ -788,6 +808,18 @@ function App() {
     return value
   }
 
+  function formatActivityLog(log, currentUserId, userMap) {
+    const actor = log.user_id === currentUserId ? 'You' : (userMap[log.user_id] || 'Unknown')
+    if (log.action === 'created') return `${actor} created this document`
+    if (log.action === 'edited') return `${actor} edited this document`
+    if (log.action === 'status_changed') {
+      const from = formatStatusForDisplay(log.old_value)
+      const to = formatStatusForDisplay(log.new_value)
+      return `${actor} changed status from ${from} → ${to}`
+    }
+    return `${actor} performed action: ${log.action}`
+  }
+
   function getBadgeForDocument(doc) {
     if (isDocOverdue(doc)) return { label: 'Overdue', className: 'status-overdue' }
     if (doc.status === 'pending') return { label: 'Pending', className: 'status-pending' }
@@ -830,6 +862,7 @@ function App() {
   const totalAmount = documents.reduce((sum, doc) => sum + (Number(doc.amount) || 0), 0)
   const userRole = user?.role === 'admin' ? 'admin' : 'staff'
   const displayName = user?.name || user?.email || 'Unknown User'
+  const deleteConfirmDocument = documents.find((doc) => doc.id === deleteConfirmId)
   const monthOptions = [
     { value: '1', label: 'January' },
     { value: '2', label: 'February' },
@@ -1280,7 +1313,7 @@ function App() {
                           <button type="button" className="btn btn-primary btn-small" onClick={() => handleEditClick(doc, userRole)}>
                             Edit
                           </button>
-                          <button type="button" className="btn btn-danger btn-small" onClick={() => handleDeleteClick(doc, userRole)}>
+                          <button type="button" className="btn btn-danger btn-small" onClick={() => setDeleteConfirmId(doc.id)}>
                             Delete
                           </button>
                           <button
@@ -1302,16 +1335,11 @@ function App() {
                               <ul className="activity-list">
                                 {activityLogs.map((log) => (
                                   <li key={log.id} className="activity-item">
-                                    <span className="activity-action">{log.action}</span>
-                                    {log.old_value != null && (
-                                      <span className="activity-detail">
-                                        {' '}
-                                        {formatStatusForDisplay(log.old_value)} {'->'} {formatStatusForDisplay(log.new_value)}
-                                      </span>
-                                    )}
+                                    <span className="activity-message">
+                                      {formatActivityLog(log, user.id, activityLogUsers)}
+                                    </span>
                                     <span className="activity-meta">
                                       {' '}
-                                      ({log.user_id === user.id ? 'You' : `${log.user_id.slice(0, 8)}...`}){' '}
                                       {new Date(log.created_at).toLocaleString()}
                                     </span>
                                   </li>
@@ -1328,6 +1356,37 @@ function App() {
             </div>
           )}
         </section>
+
+        {deleteConfirmDocument && (
+          <div className="modal-overlay">
+            <div className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-confirm-message">
+              <p id="delete-confirm-message" className="confirm-modal-message">
+                Are you sure you want to delete this document? This action cannot be undone.
+              </p>
+              <p className="confirm-modal-detail">
+                Beneficiary: <strong>{deleteConfirmDocument.beneficiary || 'N/A'}</strong>
+              </p>
+              <p className="confirm-modal-detail">
+                Reference Number / Payment Voucher Number: <strong>{deleteConfirmDocument.reference || 'N/A'}</strong>
+              </p>
+              <div className="confirm-modal-actions">
+                <button
+                  type="button"
+                  className="btn btn-danger"
+                  onClick={async () => {
+                    await handleDeleteClick(deleteConfirmDocument, userRole)
+                    setDeleteConfirmId(null)
+                  }}
+                >
+                  Delete
+                </button>
+                <button type="button" className="btn btn-neutral" onClick={() => setDeleteConfirmId(null)}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {userRole === 'admin' && (
           <section className="panel export-history-panel">

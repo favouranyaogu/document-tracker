@@ -594,6 +594,10 @@ select:focus {
   color: #334155;
 }
 
+.activity-message {
+  color: #334155;
+}
+
 .activity-action {
   font-weight: 700;
   text-transform: capitalize;
@@ -606,6 +610,47 @@ select:focus {
 .activity-meta {
   color: #64748b;
   font-size: 0.79rem;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 1200;
+}
+
+.confirm-modal {
+  width: min(480px, 100%);
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 1.1rem;
+}
+
+.confirm-modal-message {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.confirm-modal-detail {
+  margin: 0.55rem 0 0;
+  font-size: 0.88rem;
+  color: #334155;
+}
+
+.confirm-modal-actions {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  flex-wrap: wrap;
 }
 
 .export-history-list {
