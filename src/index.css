@@ -372,16 +372,26 @@ select:focus {
 
 .inline-permission-msg {
   margin: -0.15rem 0 0;
-  color: var(--danger);
-  font-size: 0.84rem;
-  font-weight: 600;
+  display: inline-block;
+  width: fit-content;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 0.8rem;
+  font-weight: 500;
 }
 
 .edit-limit-msg {
   margin: -0.15rem 0 0;
-  color: #7c3aed;
-  font-size: 0.84rem;
-  font-weight: 600;
+  display: inline-block;
+  width: fit-content;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: #fffbeb;
+  color: #92400e;
+  font-size: 0.8rem;
+  font-weight: 500;
 }
 
 .success-msg {
@@ -495,19 +505,40 @@ select:focus {
 .document-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  align-content: start;
   gap: 1rem;
 }
 
 .document-card {
   background: #ffffff;
   border: 1px solid var(--border);
+  border-left: 3px solid #e2e8f0;
   border-radius: 10px;
   box-shadow: var(--shadow);
   padding: 1rem;
   display: flex;
   flex-direction: column;
+  align-self: start;
+  height: auto;
   gap: 0.85rem;
-  min-height: 100%;
+  min-height: 0;
+}
+
+.document-card:has(.status-pill.status-pending) {
+  border-left-color: #eab308;
+}
+
+.document-card:has(.status-pill.status-in-progress) {
+  border-left-color: #3b82f6;
+}
+
+.document-card:has(.status-pill.status-sent) {
+  border-left-color: #22c55e;
+}
+
+.document-card:has(.status-pill.status-overdue) {
+  border-left-color: #ef4444;
 }
 
 .card-top-row {
@@ -524,31 +555,31 @@ select:focus {
   padding: 0.22rem 0.55rem;
   border-radius: 999px;
   font-size: 0.72rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 0.02em;
 }
 
 .doc-type-third-party {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: #f1f5f9;
+  color: #475569;
 }
 
 .doc-type-claims {
-  background: #e2e8f0;
+  background: #f1f5f9;
   color: #475569;
 }
 
 .document-reference {
   margin: 0;
   font-size: 0.86rem;
-  font-weight: 600;
+  font-weight: 400;
   color: #64748b;
 }
 
 .document-batch {
   margin: 0;
   font-size: 0.86rem;
-  font-weight: 600;
+  font-weight: 400;
   color: #64748b;
 }
 
@@ -562,8 +593,8 @@ select:focus {
 .document-due {
   margin: 0;
   font-size: 0.88rem;
-  color: #475569;
-  font-weight: 600;
+  color: #64748b;
+  font-weight: 400;
 }
 
 .document-amount {
@@ -581,20 +612,16 @@ select:focus {
 }
 
 .edited-pill {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0.25rem 0.62rem;
-  border-radius: 999px;
-  font-size: 0.76rem;
-  font-weight: 800;
+  font-size: 0.75rem;
+  font-style: italic;
+  font-weight: 500;
   white-space: nowrap;
-  background: #e2e8f0;
-  color: #475569;
+  color: #94a3b8;
 }
 
 .due-overdue {
-  color: var(--danger);
+  color: #dc2626;
+  font-weight: 400;
 }
 
 .document-description {
@@ -612,31 +639,36 @@ select:focus {
   padding: 0.25rem 0.62rem;
   border-radius: 999px;
   font-size: 0.76rem;
-  font-weight: 800;
+  font-weight: 700;
   white-space: nowrap;
 }
 
 .status-pending {
-  background: #fef3c7;
-  color: #92400e;
+  background: #fef9c3;
+  color: #854d0e;
 }
 
 .status-in-progress {
   background: #dbeafe;
-  color: #1d4ed8;
+  color: #1e40af;
 }
 
 .status-sent {
   background: #dcfce7;
-  color: #15803d;
+  color: #166534;
 }
 
 .status-overdue {
   background: #fee2e2;
-  color: #b91c1c;
+  color: #991b1b;
 }
 
 .status-control label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #64748b;
   margin-bottom: 0.3rem;
 }
 
@@ -644,6 +676,27 @@ select:focus {
   display: flex;
   gap: 0.55rem;
   flex-wrap: wrap;
+}
+
+.card-actions .btn-primary {
+  background: #4f46e5;
+}
+
+.card-actions .btn-primary:hover:not(:disabled) {
+  background: #4338ca;
+}
+
+.card-actions .btn-danger {
+  border: none;
+  box-shadow: inset 0 0 0 1px #ef4444;
+  background: #ffffff;
+  color: #ef4444;
+}
+
+.card-actions .btn-danger:hover:not(:disabled) {
+  box-shadow: none;
+  background: #ef4444;
+  color: #ffffff;
 }
 
 .activity-history {
@@ -741,6 +794,30 @@ select:focus {
 }
 
 .password-modal-actions {
+  margin-top: 0.2rem;
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  flex-wrap: wrap;
+}
+
+.edit-reason-modal {
+  width: min(520px, 100%);
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 1.1rem;
+}
+
+.edit-reason-title {
+  margin: 0 0 0.8rem;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.edit-reason-actions {
   margin-top: 0.2rem;
   display: flex;
   justify-content: flex-end;

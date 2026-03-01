@@ -48,8 +48,10 @@ function App() {
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
   const [historyExpandedId, setHistoryExpandedId] = useState(null)
-  const [activityLogs, setActivityLogs] = useState([])
+  const [activityLogs, setActivityLogs] = useState({})
   const [activityLogUsers, setActivityLogUsers] = useState({})
+  const [editReasonModalId, setEditReasonModalId] = useState(null)
+  const [editReason, setEditReason] = useState('')
   const [editCounts, setEditCounts] = useState({})
   const [editedCounts, setEditedCounts] = useState({})
   const [permissionMessages, setPermissionMessages] = useState({})
@@ -439,10 +441,12 @@ function App() {
     await supabase.from('activity_logs').insert({
       document_id: id,
       action: 'edited',
+      new_value: editReason,
       user_id: user.id
     })
 
     setEditingId(null)
+    setEditReason('')
     setEditBeneficiary('')
     setEditReference('')
     setEditBatchNumber('')
@@ -497,6 +501,7 @@ function App() {
 
   function cancelEdit() {
     setEditingId(null)
+    setEditReason('')
     setEditBeneficiary('')
     setEditReference('')
     setEditBatchNumber('')
@@ -513,7 +518,30 @@ function App() {
       return
     }
 
+    setEditReason('')
+    setEditReasonModalId(doc.id)
+  }
+
+  function handleEditReasonContinue() {
+    if (!editReasonModalId) return
+    const reason = editReason.trim()
+    if (!reason) return
+
+    const doc = documents.find((item) => item.id === editReasonModalId)
+    if (!doc) {
+      setEditReason('')
+      setEditReasonModalId(null)
+      return
+    }
+
+    setEditReason(reason)
+    setEditReasonModalId(null)
     startEdit(doc)
+  }
+
+  function handleEditReasonCancel() {
+    setEditReason('')
+    setEditReasonModalId(null)
   }
 
   async function fetchActivityLogs(documentId) {
@@ -524,11 +552,10 @@ function App() {
       .order('created_at', { ascending: false })
     if (error) return
     const logs = data || []
-    setActivityLogs(logs)
+    setActivityLogs((prev) => ({ ...prev, [documentId]: logs }))
 
     const uniqueIds = [...new Set(logs.map((log) => log.user_id).filter(Boolean))]
     if (uniqueIds.length === 0) {
-      setActivityLogUsers({})
       return
     }
 
@@ -541,13 +568,18 @@ function App() {
       acc[profile.id] = profile.name
       return acc
     }, {})
-    setActivityLogUsers(userMap)
+    setActivityLogUsers((prev) => ({ ...prev, ...userMap }))
   }
 
   function toggleHistory(docId) {
     if (historyExpandedId === docId) {
       setHistoryExpandedId(null)
-      setActivityLogs([])
+      setActivityLogs((prev) => {
+        if (!prev[docId]) return prev
+        const next = { ...prev }
+        delete next[docId]
+        return next
+      })
     } else {
       setHistoryExpandedId(docId)
       fetchActivityLogs(docId)
@@ -605,7 +637,18 @@ function App() {
 
     if (historyExpandedId === docId) {
       setHistoryExpandedId(null)
-      setActivityLogs([])
+    }
+
+    setActivityLogs((prev) => {
+      if (!prev[docId]) return prev
+      const next = { ...prev }
+      delete next[docId]
+      return next
+    })
+
+    if (editReasonModalId === docId) {
+      setEditReason('')
+      setEditReasonModalId(null)
     }
 
     clearPermissionMessage(docId)
@@ -965,7 +1008,11 @@ function App() {
   function formatActivityLog(log, currentUserId, userMap) {
     const actor = log.user_id === currentUserId ? 'You' : (userMap[log.user_id] || 'Unknown')
     if (log.action === 'created') return `${actor} created this document`
-    if (log.action === 'edited') return `${actor} edited this document`
+    if (log.action === 'edited') {
+      return log.new_value
+        ? `${actor} edited this document - Reason: ${log.new_value}`
+        : `${actor} edited this document`
+    }
     if (log.action === 'status_changed') {
       const from = formatStatusForDisplay(log.old_value)
       const to = formatStatusForDisplay(log.new_value)
@@ -1016,6 +1063,7 @@ function App() {
   const totalAmount = documents.reduce((sum, doc) => sum + (Number(doc.amount) || 0), 0)
   const userRole = user?.role === 'admin' ? 'admin' : 'staff'
   const displayName = user?.name || user?.email || 'Unknown User'
+  const editReasonModalDocument = documents.find((doc) => doc.id === editReasonModalId)
   const deleteConfirmDocument = documents.find((doc) => doc.id === deleteConfirmId)
   const monthOptions = [
     { value: '1', label: 'January' },
@@ -1356,6 +1404,7 @@ function App() {
               {filteredDocuments.map((doc) => {
                 const badge = getBadgeForDocument(doc)
                 const dueStatus = getDueStatus(doc.due_date)
+                const documentActivityLogs = activityLogs[doc.id] || []
                 const hasEdited = (editedCounts[doc.id] || 0) > 0
                 const hasReachedEditLimit = userRole === 'staff' && (editCounts[doc.id] || 0) >= 3
                 return (
@@ -1458,10 +1507,10 @@ function App() {
                           </span>
                         </div>
                         <h3 className="document-title">{doc.beneficiary || 'N/A'}</h3>
-                        <p className="document-reference">Reference Number / Payment Voucher Number: {doc.reference || 'N/A'}</p>
-                        <p className="document-batch">Batch Number: {doc.batch_number || 'N/A'}</p>
+                        <p className="document-reference">PV No: {doc.reference || 'N/A'}</p>
+                        <p className="document-batch">Batch No: {doc.batch_number || 'N/A'}</p>
                         <p className="document-description">{getDescriptionExcerpt(doc.description)}</p>
-                        <p className="document-amount">Amount: {formatAmount(doc.amount)}</p>
+                        <p className="document-amount">Amount: ₦ {formatAmount(doc.amount)}</p>
                         <div className="status-row">
                           <span className={`status-pill ${badge.className}`}>{badge.label}</span>
                           {hasEdited && <span className="edited-pill">Edited</span>}
@@ -1513,10 +1562,10 @@ function App() {
 
                         {historyExpandedId === doc.id && (
                           <div className="activity-history">
-                            {activityLogs.length === 0 && <p className="empty-msg">No activity yet.</p>}
-                            {activityLogs.length > 0 && (
+                            {documentActivityLogs.length === 0 && <p className="empty-msg">No activity yet.</p>}
+                            {documentActivityLogs.length > 0 && (
                               <ul className="activity-list">
-                                {activityLogs.map((log) => (
+                                {documentActivityLogs.map((log) => (
                                   <li key={log.id} className="activity-item">
                                     <span className="activity-message">
                                       {formatActivityLog(log, user.id, activityLogUsers)}
@@ -1539,6 +1588,33 @@ function App() {
             </div>
           )}
         </section>
+
+        {editReasonModalDocument && (
+          <div className="modal-overlay">
+            <div className="edit-reason-modal" role="dialog" aria-modal="true" aria-labelledby="edit-reason-title">
+              <h3 id="edit-reason-title" className="edit-reason-title">Reason for Edit</h3>
+              <div className="form-group">
+                <label htmlFor="edit-reason-textarea">Please provide a reason for editing this document.</label>
+                <textarea
+                  id="edit-reason-textarea"
+                  value={editReason}
+                  onChange={(e) => setEditReason(e.target.value)}
+                  rows={4}
+                  required
+                  autoFocus
+                />
+              </div>
+              <div className="edit-reason-actions">
+                <button type="button" className="btn btn-primary" onClick={handleEditReasonContinue}>
+                  Continue
+                </button>
+                <button type="button" className="btn btn-neutral" onClick={handleEditReasonCancel}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {deleteConfirmDocument && (
           <div className="modal-overlay">
