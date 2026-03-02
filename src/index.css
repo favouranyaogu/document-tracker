@@ -824,6 +824,28 @@ select:focus {
   gap: 0.65rem;
   flex-wrap: wrap;
 }
+.inactivity-modal {
+  width: min(420px, 100%);
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  padding: 1.5rem;
+  text-align: center;
+}
+
+.inactivity-modal-title {
+  margin: 0 0 0.75rem;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.inactivity-modal-body {
+  margin: 0 0 1.25rem;
+  font-size: 0.9rem;
+  color: #334155;
+}
 
 .export-history-list {
   list-style: none;

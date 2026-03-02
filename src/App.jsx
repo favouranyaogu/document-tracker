@@ -32,6 +32,8 @@ function App() {
   const [deleteConfirmId, setDeleteConfirmId] = useState(null)
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)
+  const [showInactivityWarning, setShowInactivityWarning] = useState(false)
+  const [inactivityCountdown, setInactivityCountdown] = useState(120)
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmNewPassword, setConfirmNewPassword] = useState('')
@@ -71,6 +73,9 @@ function App() {
   const [exportLogsError, setExportLogsError] = useState(null)
   const accountMenuRef = useRef(null)
   const passwordCloseTimerRef = useRef(null)
+  const inactivityTimerRef = useRef(null)
+  const countdownIntervalRef = useRef(null)
+  const inactivityWarningVisibleRef = useRef(false)
 
   async function getUserWithProfile(authUser) {
     if (!authUser) return null
@@ -298,6 +303,17 @@ function App() {
     if (!user) {
       setAccountMenuOpen(false)
       setPasswordModalOpen(false)
+      setShowInactivityWarning(false)
+      setInactivityCountdown(120)
+      inactivityWarningVisibleRef.current = false
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current)
+        inactivityTimerRef.current = null
+      }
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current)
+        countdownIntervalRef.current = null
+      }
       setPasswordError('')
       setPasswordSuccess('')
       setCurrentPassword('')
@@ -793,6 +809,68 @@ function App() {
     setAccountMenuOpen(false)
     await supabase.auth.signOut()
   }
+
+  function resetInactivityTimer() {
+    if (inactivityWarningVisibleRef.current) {
+      inactivityWarningVisibleRef.current = false
+      setShowInactivityWarning(false)
+      setInactivityCountdown(120)
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current)
+        countdownIntervalRef.current = null
+      }
+    }
+
+    if (inactivityTimerRef.current) {
+      clearTimeout(inactivityTimerRef.current)
+    }
+
+    inactivityTimerRef.current = setTimeout(() => {
+      inactivityWarningVisibleRef.current = true
+      setShowInactivityWarning(true)
+      setInactivityCountdown(120)
+
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current)
+      }
+
+      countdownIntervalRef.current = setInterval(() => {
+        setInactivityCountdown((prev) => {
+          if (prev <= 1) {
+            if (countdownIntervalRef.current) {
+              clearInterval(countdownIntervalRef.current)
+              countdownIntervalRef.current = null
+            }
+            inactivityWarningVisibleRef.current = false
+            setShowInactivityWarning(false)
+            handleLogout()
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    }, 58 * 60 * 1000)
+  }
+
+  useEffect(() => {
+    if (!user) return
+
+    const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll']
+    events.forEach((eventName) => window.addEventListener(eventName, resetInactivityTimer))
+    resetInactivityTimer()
+
+    return () => {
+      events.forEach((eventName) => window.removeEventListener(eventName, resetInactivityTimer))
+      if (inactivityTimerRef.current) {
+        clearTimeout(inactivityTimerRef.current)
+        inactivityTimerRef.current = null
+      }
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current)
+        countdownIntervalRef.current = null
+      }
+    }
+  }, [user])
 
   function closePasswordModal() {
     setPasswordModalOpen(false)
@@ -1693,6 +1771,20 @@ function App() {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {showInactivityWarning && (
+          <div className="modal-overlay" onClick={resetInactivityTimer}>
+            <div className="inactivity-modal" role="alertdialog" aria-modal="true">
+              <h3 className="inactivity-modal-title">Session Expiring</h3>
+              <p className="inactivity-modal-body">
+                You'll be logged out in <strong>{inactivityCountdown}</strong> second(s) due to inactivity.
+              </p>
+              <button type="button" className="btn btn-primary" onClick={resetInactivityTimer}>
+                Stay Logged In
+              </button>
             </div>
           </div>
         )}
