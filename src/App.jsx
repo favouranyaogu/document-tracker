@@ -9,6 +9,7 @@ import InactivityModal from './components/InactivityModal'
 import KPIBar from './components/KPIBar'
 import DocumentForm from './components/DocumentForm'
 import DocumentCard from './components/DocumentCard'
+import Navbar from './components/Navbar'
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -1200,75 +1201,20 @@ function App() {
 
   const dashboardView = (
     <div className="app-shell">
-      <header className="top-nav">
-        <div className="nav-brand">
-          <span className="brand-mark">DT</span>
-          <div>
-            <p className="brand-title">Document Tracker</p>
-            <p className="brand-subtitle">SaaS Workspace</p>
-          </div>
-        </div>
-        <div className="nav-user">
-          <div className="notifications-menu" ref={notificationsRef}>
-            <button
-              type="button"
-              className="notifications-trigger"
-              onClick={() => setNotificationsOpen((prev) => !prev)}
-              aria-label="Notifications"
-            >
-              <span className="bell-icon" />
-              {notifications.length > 0 && (
-                <span className="notifications-badge">{notifications.length}</span>
-              )}
-            </button>
-            {notificationsOpen && (
-              <div className="notifications-dropdown">
-                <p className="notifications-heading">Notifications</p>
-                {notifications.length === 0 && (
-                  <p className="notifications-empty">No alerts right now.</p>
-                )}
-                {notifications.length > 0 && (
-                  <ul className="notifications-list">
-                    {notifications.map((n) => (
-                      <li
-                        key={n.id}
-                        className={`notification-item notification-${n.type}`}
-                        onClick={() => setNotificationsOpen(false)}
-                      >
-                        <p className="notification-beneficiary">{n.beneficiary}</p>
-                        <p className="notification-message">{n.message}</p>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-          </div>
-          <div className="account-menu" ref={accountMenuRef}>
-            <button
-              type="button"
-              className="account-trigger"
-              onClick={() => setAccountMenuOpen((prev) => !prev)}
-            >
-              <div className="user-identity">
-                <span className="user-name">{displayName}</span>
-                <span className={`role-badge role-badge-${userRole}`}>{userRole}</span>
-              </div>
-            </button>
-            {accountMenuOpen && (
-              <div className="account-dropdown">
-                <button type="button" className="account-menu-item" onClick={openPasswordModal}>
-                  Change Password
-                </button>
-                <button type="button" className="account-menu-item" onClick={handleLogout}>
-                  Logout
-                </button>
-              </div>
-            )}
-          </div>
-          <span className="user-email">{user?.email}</span>
-        </div>
-      </header>
+      <Navbar
+        displayName={displayName}
+        userRole={userRole}
+        userEmail={user?.email}
+        notifications={notifications}
+        notificationsOpen={notificationsOpen}
+        onToggleNotifications={() => setNotificationsOpen((prev) => !prev)}
+        notificationsRef={notificationsRef}
+        accountMenuOpen={accountMenuOpen}
+        onToggleAccountMenu={() => setAccountMenuOpen((prev) => !prev)}
+        accountMenuRef={accountMenuRef}
+        onOpenPasswordModal={openPasswordModal}
+        onLogout={handleLogout}
+      />
 
       <main className="dashboard-content">
         <KPIBar
