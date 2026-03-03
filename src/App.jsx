@@ -31,6 +31,7 @@ function App() {
   const [editingId, setEditingId] = useState(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState(null)
   const [accountMenuOpen, setAccountMenuOpen] = useState(false)
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)
   const [showInactivityWarning, setShowInactivityWarning] = useState(false)
   const [inactivityCountdown, setInactivityCountdown] = useState(120)
@@ -72,6 +73,7 @@ function App() {
   const [exportLogsLoading, setExportLogsLoading] = useState(false)
   const [exportLogsError, setExportLogsError] = useState(null)
   const accountMenuRef = useRef(null)
+  const notificationsRef = useRef(null)
   const passwordCloseTimerRef = useRef(null)
   const inactivityTimerRef = useRef(null)
   const countdownIntervalRef = useRef(null)
@@ -279,9 +281,11 @@ function App() {
 
   useEffect(() => {
     function handleDocumentClick(event) {
-      if (!accountMenuRef.current) return
-      if (!accountMenuRef.current.contains(event.target)) {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(event.target)) {
         setAccountMenuOpen(false)
+      }
+      if (notificationsRef.current && !notificationsRef.current.contains(event.target)) {
+        setNotificationsOpen(false)
       }
     }
 
@@ -302,6 +306,7 @@ function App() {
   useEffect(() => {
     if (!user) {
       setAccountMenuOpen(false)
+      setNotificationsOpen(false)
       setPasswordModalOpen(false)
       setShowInactivityWarning(false)
       setInactivityCountdown(120)
@@ -1137,6 +1142,17 @@ function App() {
 
   const overdueCount = documents.filter(isDocOverdue).length
   const dueSoonCount = documents.filter(isDueSoon).length
+  const notifications = documents
+    .filter((doc) => isDocOverdue(doc) || isDueSoon(doc))
+    .map((doc) => ({
+      id: doc.id,
+      beneficiary: doc.beneficiary,
+      message: isDocOverdue(doc)
+        ? `Overdue: ${getDueText(doc.due_date)}`
+        : `Due soon: ${getDueText(doc.due_date)}`,
+      type: isDocOverdue(doc) ? 'overdue' : 'due_soon'
+    }))
+    .sort((a, b) => (a.type === 'overdue' ? -1 : 1))
   const sentCount = documents.filter((doc) => doc.status === 'completed').length
   const totalAmount = documents.reduce((sum, doc) => sum + (Number(doc.amount) || 0), 0)
   const userRole = user?.role === 'admin' ? 'admin' : 'staff'
@@ -1186,6 +1202,41 @@ function App() {
           </div>
         </div>
         <div className="nav-user">
+          <div className="notifications-menu" ref={notificationsRef}>
+            <button
+              type="button"
+              className="notifications-trigger"
+              onClick={() => setNotificationsOpen((prev) => !prev)}
+              aria-label="Notifications"
+            >
+              <span className="bell-icon" />
+              {notifications.length > 0 && (
+                <span className="notifications-badge">{notifications.length}</span>
+              )}
+            </button>
+            {notificationsOpen && (
+              <div className="notifications-dropdown">
+                <p className="notifications-heading">Notifications</p>
+                {notifications.length === 0 && (
+                  <p className="notifications-empty">No alerts right now.</p>
+                )}
+                {notifications.length > 0 && (
+                  <ul className="notifications-list">
+                    {notifications.map((n) => (
+                      <li
+                        key={n.id}
+                        className={`notification-item notification-${n.type}`}
+                        onClick={() => setNotificationsOpen(false)}
+                      >
+                        <p className="notification-beneficiary">{n.beneficiary}</p>
+                        <p className="notification-message">{n.message}</p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
           <div className="account-menu" ref={accountMenuRef}>
             <button
               type="button"
@@ -1593,9 +1644,15 @@ function App() {
                           <span className={`status-pill ${badge.className}`}>{badge.label}</span>
                           {hasEdited && <span className="edited-pill">Edited</span>}
                         </div>
-                        <p className={`document-due ${dueStatus === 'overdue' ? 'due-overdue' : ''}`}>
-                          Due Date: {formatDueDate(doc.due_date)} ({getDueText(doc.due_date)})
-                        </p>
+                        {doc.status === 'completed' ? (
+                          <p className="document-due due-sent">
+                            Sent on: {doc.date_out ? formatDueDate(doc.date_out) : 'N/A'}
+                          </p>
+                        ) : (
+                          <p className={`document-due ${dueStatus === 'overdue' ? 'due-overdue' : ''}`}>
+                            Due Date: {formatDueDate(doc.due_date)} ({getDueText(doc.due_date)})
+                          </p>
+                        )}
 
                         <div className="status-control">
                           <label htmlFor={`status-${doc.id}`}>Status</label>

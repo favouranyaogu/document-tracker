@@ -55,6 +55,7 @@ body {
   border-radius: 14px;
   box-shadow: var(--shadow);
   margin-bottom: 1.5rem;
+  overflow: visible;
 }
 
 .nav-brand {
@@ -96,10 +97,135 @@ body {
   gap: 0.75rem;
   flex-wrap: wrap;
   justify-content: flex-end;
+  overflow: visible;
 }
 
 .account-menu {
   position: relative;
+}
+
+.notifications-menu {
+  position: relative;
+}
+
+.notifications-trigger {
+  position: relative;
+  z-index: 50;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0.25rem;
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.bell-icon {
+  display: inline-block;
+  width: 0.8rem;
+  height: 0.7rem;
+  border: 2px solid #334155;
+  border-bottom-width: 1px;
+  border-radius: 0.45rem 0.45rem 0.25rem 0.25rem;
+  position: relative;
+}
+
+.bell-icon::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -0.22rem;
+  transform: translateX(-50%);
+  width: 0.2rem;
+  height: 0.2rem;
+  background: #334155;
+  border-radius: 999px;
+}
+
+.notifications-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: #EF4444;
+  color: #ffffff;
+  font-size: 0.65rem;
+  font-weight: 800;
+  border-radius: 999px;
+  min-width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 3px;
+}
+
+.notifications-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.4rem);
+  width: 300px;
+  background: #ffffff;
+  border: 1px solid #d7dfeb;
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 0.5rem;
+  z-index: 100;
+}
+
+.notifications-heading {
+  margin: 0 0 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: #0f172a;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0 0.4rem;
+}
+
+.notifications-empty {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #94A3B8;
+  padding: 0.4rem;
+}
+
+.notifications-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.notification-item {
+  padding: 0.5rem 0.6rem;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.notification-item:hover {
+  background: #F8FAFC;
+}
+
+.notification-overdue {
+  border-left: 3px solid #EF4444;
+}
+
+.notification-due_soon {
+  border-left: 3px solid #F59E0B;
+}
+
+.notification-beneficiary {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.notification-message {
+  margin: 0.15rem 0 0;
+  font-size: 0.78rem;
+  color: #64748B;
 }
 
 .account-trigger {
@@ -520,7 +646,7 @@ select:focus {
   display: flex;
   flex-direction: column;
   align-self: start;
-  height: auto;
+  height: fit-content;
   gap: 0.85rem;
   min-height: 0;
 }
@@ -595,6 +721,12 @@ select:focus {
   font-size: 0.88rem;
   color: #64748b;
   font-weight: 400;
+}
+
+.due-sent {
+  color: #64748B;
+  font-style: italic;
+  font-size: 0.85rem;
 }
 
 .document-amount {
@@ -931,6 +1063,15 @@ select:focus {
 
   .document-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .notifications-dropdown {
+    right: auto;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 280px;
   }
 }
 
