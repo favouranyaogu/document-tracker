@@ -1,4 +1,4 @@
-# Document Tracker — Full Project Context (Updated Feb 2026)
+# Document Tracker — Full Project Context (v1.0 — March 2026)
 
 ## 1. Project Overview
 Document Tracker is a web-based internal office application built for an audit department to track both physical and digital documents throughout their lifecycle.
@@ -11,6 +11,9 @@ Core capabilities:
 - Restrict access via authentication and role-based permissions
 - Export monthly reports to Excel
 - Admin-controlled export permissions with audit trail
+- In-app notifications for overdue and due soon documents
+- Session timeout after 1 hour of inactivity
+- Print view for document list
 
 ## 2. Technology Stack
 
@@ -29,7 +32,7 @@ Core capabilities:
 ### Tooling
 - Node.js
 - Git (local version control)
-- GitHub (remote backup)
+- GitHub: https://github.com/favouranyaogu/document-tracker
 - Codex CLI (AI-assisted development)
 
 ## 3. Source of Truth
@@ -53,7 +56,7 @@ All tools must run from this directory. Do NOT mix with WSL or other paths.
 |--------|------|-------|
 | id | uuid | PK |
 | reference | text | PV Number |
-| beneficiary | text | Primary identifier (replaces title) |
+| beneficiary | text | Primary identifier |
 | description | text | Required |
 | status | text | pending, in_progress, completed |
 | assigned_to | uuid | Unused for now |
@@ -114,131 +117,138 @@ All tools must run from this directory. Do NOT mix with WSL or other paths.
 | staff1@office.local | Staff One | staff |
 | staff2@office.local | Staff Two | staff |
 
-## 7. What Has Been Built
+## 7. Component Structure
+```
+src/
+  components/
+    Navbar.jsx
+    KPIBar.jsx
+    DocumentCard.jsx
+    DocumentForm.jsx
+    modals/
+      DeleteModal.jsx
+      EditReasonModal.jsx
+      PasswordModal.jsx
+      InactivityModal.jsx
+  App.jsx  (routing, state, handlers)
+  index.css
+```
+
+## 8. What Has Been Built
 
 ### Authentication
 - Email/password login
 - Protected routes
 - Logout functionality
 - Session persistence
-- Fast auth load (profile fetched in background, doesn't block render)
-- Password change from within app (navbar account menu)
+- Fast auth load (profile fetched in background)
+- Password change from navbar account menu
+- Session timeout after 58 minutes of inactivity with 2 minute warning modal
 
 ### Document Management
-- Create documents with: Beneficiary, Reference/PV No, Batch Number, Description, Amount, Status
+- Create documents: Beneficiary, Reference/PV No, Batch Number, Description, Amount, Status
 - Document type auto-detected from batch number prefix (TPP/NCDF = Third Party, SP = Claims, unknown = manual select)
 - Due date auto-set to 2 days from creation
-- Date Out auto-set when status changes to Sent/Completed, cleared otherwise
-- Edit documents inline (within card) — requires reason before editing
+- Date Out auto-set when status → Sent, cleared otherwise
+- Edit documents inline with required reason before editing
 - Delete documents (admin only) with confirmation modal
 - Status change inline via dropdown on card
-- Edit limit: staff can edit max 3 times per document, admin unlimited
-- "Edited" badge on cards that have been modified
+- Edit limit: staff max 3 edits per document, admin unlimited
+- "Edited" badge on modified cards
+- "Sent on: [date]" shown instead of due date on completed documents
 
 ### Document Types
 - Two types: Third Party and Claims
-- Tab switcher in documents panel for filtering by type
-- Type auto-detected from batch number
+- Tab switcher for filtering by type
+- Type auto-detected from batch number prefix
 
 ### Activity Logging
-- Document creation logged
-- Status changes logged (with old and new values)
-- Edits logged with reason provided by user
-- History displayed per document with human-readable formatting:
-  - "You created this document"
-  - "Office Admin changed status from Pending → In Progress"
-  - "You edited this document - Reason: [reason]"
-- Activity log users shown by name (not UID)
+- Creation, status changes, and edits logged
+- Edit reason required and stored in activity log
+- Human-readable formatting in history view
+- User names shown (not UIDs)
 
 ### Role-Based Permissions
-- Admin: can edit/delete any document, unlimited edits, always has export access
-- Staff: can only edit documents they created, cannot delete, edit limit of 3
-- Buttons visible to all but actions blocked with inline message for unauthorized users
-- Role badge shown in navbar
+- Admin: edit/delete any document, unlimited edits, always has export access
+- Staff: only edit own documents, cannot delete, 3 edit limit
+- Buttons visible to all, actions blocked with inline message for unauthorized users
+- Role badge in navbar
 
 ### KPI Bar
-- Total Documents
-- Total Amount (sum of all document amounts, formatted)
-- Overdue count
-- Due Soon count (within 2 days)
-- Total Sent count
+- Total Documents, Total Amount, Overdue, Due Soon, Total Sent
 
 ### Filtering & Search
 - Tab switcher: Third Party / Claims
-- Filter by status (All, Overdue, Pending, In Progress, Sent)
+- Filter by status
 - Search by beneficiary, description, reference, batch number
+- Date range filter (From / To) by created_at
 
 ### Excel Export
-- Admin always has access
-- Staff need admin to grant export permission
-- Export picker: select month and year
-- Generates single sheet "Monthly Report"
+- Admin always has access, staff need permission granted by admin
+- Single sheet "Monthly Report"
 - Columns: Entry Date | Beneficiary | Description | PV No | Batch No | Amount | Date Out | Status
 - Totals at bottom: TOTAL DOCUMENTS, TOTAL AMOUNT
-- Filename: `third-party-report-YYYY-MM.xlsx` or `claims-report-YYYY-MM.xlsx`
-- Export logged to export_logs table
+- Filename reflects active tab: `third-party-report-YYYY-MM.xlsx` or `claims-report-YYYY-MM.xlsx`
+- Export respects active tab — no mixing of Third Party and Claims
+- Export logged to export_logs
 
 ### Export Permissions (Admin UI)
-- Admin sees list of staff with Grant/Revoke access buttons
-- Export history panel showing who exported, when, which month, record count
+- Grant/Revoke export access per staff user
+- Export history: who exported, when, which month, record count
+
+### Notifications
+- Bell icon in navbar with red badge count
+- Dropdown shows overdue and due soon documents
+- Overdue sorted first, due soon second
+- Derived from existing documents state — no extra Supabase queries
 
 ### UI
-- Modern SaaS design
-- Card-based document layout with left border accent by status color
-- Navbar with account menu (Change Password, Logout)
+- Modern SaaS design, calm color palette
+- Card-based layout with left border accent by status
+- Neutral card action buttons, color only on hover
 - Delete confirmation modal
 - Edit reason modal
-- Role badge in navbar
-- KPI summary bar
-- Muted, calm color palette — no color overload
+- Inactivity warning modal
+- Password change modal
+- Print view via `@media print` — clean table, no UI chrome
 - ₦ currency symbol on amounts
 
-## 8. Known Issues / In Progress
-- **Document grid CSS bug**: On desktop two-column grid, when one card expands its history the adjacent card on the same row stretches to match height. Logic is confirmed correct (unique IDs, keyed activityLogs state). Bug is CSS only — `align-items: start` and `align-self: start` on `.document-card` not resolving it yet. Needs fresh investigation.
-- Console shows encoding issue with arrow character in status_changed logs: `â†'` instead of `→` — needs charset fix
-- Debug console.log still in toggleHistory function — needs removal
+## 9. Pending Work (Post Client Feedback)
+1. **Utils/hooks refactor** — move utility functions to `src/utils.js` and custom hooks
+2. **Print view improvement** — dynamic title based on active tab
+3. **Hosting** — deploy to Vercel when client approves (free tier, connects to GitHub)
 
-## 9. Pending Work (Priority Order)
-1. **Fix document grid CSS stretch bug** (known issue above)
-2. **Remove debug console.log from toggleHistory**
-3. **Fix arrow encoding bug** in formatActivityLog (→ showing as â†')
-4. **Session timeout** after 1 hour of inactivity
-5. **In-app notifications** (bell icon, overdue alerts)
-6. **Component refactor** — App.jsx is very large (~1600 lines), needs splitting into components
-7. **Queries and Returns** — DO NOT BUILD until client accepts and approves the app first
-8. **Print view** — clean printable version of monthly document list
+## 10. What NOT to Build Yet
+- Queries and Returns — do not build until client accepts and explicitly requests it
+- JCC document type — never confirmed, do not suggest
+- Network/IP restriction — only if client explicitly requests it
+- Account self-registration — keep manual via Supabase
+- Auto PV number generation — department generates externally
+- Document assignment — assigned_to column exists but unused, pending client feedback
 
-## 10. Architectural Decisions
-- Single App.jsx (refactor pending — too large now)
-- Plain CSS only (no Tailwind, no UI frameworks)
-- Supabase for auth + database
-- No custom dropdown logic — native `<select>` elements only
-- activityLogs stored as keyed object `{ [documentId]: logs[] }` not flat array
-- Document type auto-detected from batch number, not manually selected
-- Edit count derived from activity_logs query, no separate column
+## 11. Security Notes
+- Supabase anon key visible in frontend — safe because RLS is properly enforced
+- RLS enforced at database level on all tables
+- Role-based permissions on both frontend and database
+- Session timeout after 1 hour of inactivity
+- No rate limiting on login beyond Supabase defaults
+- HTTPS only relevant in production — use Vercel which handles this automatically
 
-## 11. Development Workflow Rules
+## 12. Development Workflow Rules
 1. Always verify working directory: `C:\Users\User\Documents\document-tracker`
 2. Always run dev server from source-of-truth folder
 3. Commit before major refactors
 4. Use Git restore to undo bad edits
 5. Never rely on sandbox state
 6. Codex for code changes, PowerShell for git commits
-7. Always read SKILL.md files before creating documents
+7. `git push` to sync to GitHub after committing
 
-## 12. Long-Term Vision
-- Structured internal document control system
-- Role-based access (done)
-- Dashboard analytics
-- Clear document lifecycle tracking
-- Queries and Returns section (only after client approves and requests it)
-- Production-ready architecture
-- Component-based structure (pending refactor)
-
-## 13. What NOT to Build Yet
-- JCC document type — never discussed in detail, do not bring up or suggest. Only mention if client explicitly asks for it.
-- Queries and Returns — do not build until client accepts the app and explicitly requests it
-- Account self-registration flow (keep manual via Supabase for now)
-- Network/IP restriction — only build if client explicitly requests it, not a current requirement
-- Auto PV number generation (department generates these externally)
-- Document assignment (assigned_to column exists but unused — pending client feedback)
+## 13. Architectural Decisions
+- Plain CSS only (no Tailwind, no UI libraries)
+- Native `<select>` elements only — no custom dropdowns
+- activityLogs stored as keyed object `{ [documentId]: logs[] }`
+- Document type auto-detected from batch number
+- Edit count derived from activity_logs, no separate column
+- Notifications derived from existing documents state, no extra queries
+- Components extracted: Navbar, KPIBar, DocumentForm, DocumentCard, all modals
+- App.jsx handles routing, state, and handlers only
