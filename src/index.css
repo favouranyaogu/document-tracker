@@ -810,25 +810,37 @@ select:focus {
   flex-wrap: wrap;
 }
 
-.card-actions .btn-primary {
-  background: #4f46e5;
+.card-actions .btn {
+  background: #F1F5F9;
+  color: #475569;
+  border: 1px solid #E2E8F0;
+  font-weight: 600;
+  font-size: 0.8rem;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
-.card-actions .btn-primary:hover:not(:disabled) {
-  background: #4338ca;
+.card-actions .btn:hover {
+  background: #E2E8F0;
+  color: #1e293b;
+  border-color: #CBD5E1;
 }
 
-.card-actions .btn-danger {
-  border: none;
-  box-shadow: inset 0 0 0 1px #ef4444;
-  background: #ffffff;
-  color: #ef4444;
+.card-actions .btn-primary:hover {
+  background: #EEF2FF;
+  color: #4F46E5;
+  border-color: #C7D2FE;
 }
 
-.card-actions .btn-danger:hover:not(:disabled) {
-  box-shadow: none;
-  background: #ef4444;
-  color: #ffffff;
+.card-actions .btn-danger:hover {
+  background: #FEF2F2;
+  color: #DC2626;
+  border-color: #FECACA;
+}
+
+.card-actions .btn-active {
+  background: #EEF2FF;
+  color: #4F46E5;
+  border-color: #C7D2FE;
 }
 
 .activity-history {
