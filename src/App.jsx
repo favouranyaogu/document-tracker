@@ -1290,7 +1290,7 @@ function App() {
           formatDocumentType={formatDocumentType}
         />
 
-        <section className="panel documents-panel">
+        <section className="panel documents-panel" data-print-title="Third Party Documents">
           <div className="tab-switcher" role="tablist" aria-label="Document Type Tabs">
             <button
               type="button"
@@ -1313,18 +1313,27 @@ function App() {
               <h2>Documents</h2>
               <p>Search, filter, edit, and monitor activity inline.</p>
             </div>
-            {canExport && (
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               <button
                 type="button"
-                className="btn btn-primary"
-                onClick={() => {
-                  setExportError(null)
-                  setExportPickerOpen((prev) => !prev)
-                }}
+                className="btn btn-neutral"
+                onClick={() => window.print()}
               >
-                {exportPickerOpen ? 'Close Export' : 'Export Monthly Report'}
+                Print List
               </button>
-            )}
+              {canExport && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => {
+                    setExportError(null)
+                    setExportPickerOpen((prev) => !prev)
+                  }}
+                >
+                  {exportPickerOpen ? 'Close Export' : 'Export Monthly Report'}
+                </button>
+              )}
+            </div>
           </div>
 
           {canExport && exportPickerOpen && (

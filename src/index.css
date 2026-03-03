@@ -1134,3 +1134,89 @@ select:focus {
     flex: 1 1 0;
   }
 }
+
+@media print {
+  /* Hide everything except the document table */
+  .top-nav,
+  .kpi-bar,
+  .panel.create-panel,
+  .panel.export-permissions-panel,
+  .panel.export-history-panel,
+  .tab-switcher,
+  .controls-row,
+  .panel-heading,
+  .card-actions,
+  .status-control,
+  .activity-history,
+  .btn,
+  .export-picker,
+  .inline-permission-msg,
+  .edit-limit-msg,
+  .modal-overlay {
+    display: none !important;
+  }
+
+  /* Reset page styles */
+  body {
+    background: #ffffff;
+    color: #000000;
+    font-size: 11pt;
+    font-family: Arial, sans-serif;
+  }
+
+  .app-shell {
+    padding: 0;
+  }
+
+  .dashboard-content {
+    padding: 0;
+  }
+
+  /* Print header */
+  .documents-panel::before {
+    content: "Document Tracker — " attr(data-print-title);
+    display: block;
+    font-size: 14pt;
+    font-weight: bold;
+    margin-bottom: 0.5cm;
+    border-bottom: 2px solid #000;
+    padding-bottom: 0.3cm;
+  }
+
+  /* Convert cards to a clean table */
+  .document-grid {
+    display: table;
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .document-card {
+    display: table-row;
+  }
+
+  .document-card > * {
+    display: table-cell;
+    padding: 0.2cm 0.3cm;
+    border: 1px solid #ccc;
+    vertical-align: top;
+    font-size: 9pt;
+  }
+
+  /* Hide elements inside cards not needed for print */
+  .document-type-pill,
+  .edited-pill,
+  .status-row,
+  .card-top-row {
+    display: none !important;
+  }
+
+  /* Show only key fields */
+  .document-title,
+  .document-reference,
+  .document-batch,
+  .document-description,
+  .document-amount,
+  .document-due {
+    display: table-cell;
+  }
+}
