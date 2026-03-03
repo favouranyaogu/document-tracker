@@ -58,6 +58,8 @@ function App() {
   const [editDueDate, setEditDueDate] = useState('')
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
+  const [filterDateFrom, setFilterDateFrom] = useState('')
+  const [filterDateTo, setFilterDateTo] = useState('')
   const [historyExpandedId, setHistoryExpandedId] = useState(null)
   const [activityLogs, setActivityLogs] = useState({})
   const [activityLogUsers, setActivityLogUsers] = useState({})
@@ -1145,7 +1147,12 @@ function App() {
       (filter === 'in_progress' && doc.status === 'in_progress') ||
       (filter === 'completed' && doc.status === 'completed')
 
-    return matchesSearch && matchesFilter
+    const matchesDateFrom = !filterDateFrom ||
+      new Date(doc.created_at) >= new Date(filterDateFrom)
+    const matchesDateTo = !filterDateTo ||
+      new Date(doc.created_at) <= new Date(filterDateTo + 'T23:59:59')
+
+    return matchesSearch && matchesFilter && matchesDateFrom && matchesDateTo
   })
 
   const overdueCount = documents.filter(isDocOverdue).length
@@ -1388,6 +1395,24 @@ function App() {
                 <option value="in_progress">In Progress</option>
                 <option value="completed">Sent</option>
               </select>
+            </div>
+            <div className="control-field">
+              <label htmlFor="filter-date-from">From</label>
+              <input
+                id="filter-date-from"
+                type="date"
+                value={filterDateFrom}
+                onChange={(e) => setFilterDateFrom(e.target.value)}
+              />
+            </div>
+            <div className="control-field">
+              <label htmlFor="filter-date-to">To</label>
+              <input
+                id="filter-date-to"
+                type="date"
+                value={filterDateTo}
+                onChange={(e) => setFilterDateTo(e.target.value)}
+              />
             </div>
           </div>
 
