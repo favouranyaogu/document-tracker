@@ -8,6 +8,7 @@ import PasswordModal from './components/PasswordModal'
 import InactivityModal from './components/InactivityModal'
 import KPIBar from './components/KPIBar'
 import DocumentForm from './components/DocumentForm'
+import DocumentCard from './components/DocumentCard'
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -1454,196 +1455,52 @@ function App() {
 
           {!docLoading && activeTabDocuments.length > 0 && filteredDocuments.length > 0 && (
             <div className="document-grid">
-              {filteredDocuments.map((doc) => {
-                const badge = getBadgeForDocument(doc)
-                const dueStatus = getDueStatus(doc.due_date)
-                const documentActivityLogs = activityLogs[doc.id] || []
-                const hasEdited = (editedCounts[doc.id] || 0) > 0
-                const hasReachedEditLimit = userRole === 'staff' && (editCounts[doc.id] || 0) >= 3
-                return (
-                  <article key={doc.id} className="document-card">
-                    {editingId === doc.id ? (
-                      <div className="edit-panel">
-                        <h3 className="edit-title">Edit Document</h3>
-                        <div className="form-group">
-                          <label htmlFor={`edit-beneficiary-${doc.id}`}>Beneficiary</label>
-                          <input
-                            id={`edit-beneficiary-${doc.id}`}
-                            type="text"
-                            value={editBeneficiary}
-                            onChange={(e) => setEditBeneficiary(e.target.value)}
-                            autoFocus
-                            required
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label htmlFor={`edit-reference-${doc.id}`}>Reference Number / Payment Voucher Number</label>
-                          <input
-                            id={`edit-reference-${doc.id}`}
-                            type="text"
-                            value={editReference}
-                            onChange={(e) => setEditReference(e.target.value)}
-                            required
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label htmlFor={`edit-batch-${doc.id}`}>Batch Number</label>
-                          <input
-                            id={`edit-batch-${doc.id}`}
-                            type="text"
-                            value={editBatchNumber}
-                            onChange={(e) => setEditBatchNumber(e.target.value)}
-                            required
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label htmlFor={`edit-desc-${doc.id}`}>Description</label>
-                          <textarea
-                            id={`edit-desc-${doc.id}`}
-                            value={editDescription}
-                            onChange={(e) => setEditDescription(e.target.value)}
-                            rows={3}
-                            required
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label htmlFor={`edit-amount-${doc.id}`}>Amount</label>
-                          <input
-                            id={`edit-amount-${doc.id}`}
-                            type="number"
-                            min="0.01"
-                            step="0.01"
-                            value={editAmount}
-                            onChange={(e) => setEditAmount(e.target.value)}
-                            required
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label htmlFor={`edit-status-${doc.id}`}>Status</label>
-                          <select
-                            id={`edit-status-${doc.id}`}
-                            value={editStatus}
-                            onChange={(e) => setEditStatus(e.target.value)}
-                          >
-                            <option value="pending">Pending</option>
-                            <option value="in_progress">In Progress</option>
-                            <option value="completed">Sent</option>
-                          </select>
-                        </div>
-                        <div className="form-group">
-                          <label htmlFor={`edit-due-${doc.id}`}>Due Date</label>
-                          <input
-                            id={`edit-due-${doc.id}`}
-                            type="date"
-                            value={editDueDate}
-                            onChange={(e) => setEditDueDate(e.target.value)}
-                          />
-                        </div>
-                        <div className="inline-actions">
-                          <button
-                            type="button"
-                            className="btn btn-primary"
-                            onClick={() => handleInlineEditSave(doc)}
-                          >
-                            Save
-                          </button>
-                          <button type="button" className="btn btn-neutral" onClick={cancelEdit}>
-                            Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="card-top-row">
-                          <span className={`document-type-pill ${getDocumentTypeClassName(doc.document_type)}`}>
-                            {formatDocumentType(doc.document_type)}
-                          </span>
-                        </div>
-                        <h3 className="document-title">{doc.beneficiary || 'N/A'}</h3>
-                        <p className="document-reference">PV No: {doc.reference || 'N/A'}</p>
-                        <p className="document-batch">Batch No: {doc.batch_number || 'N/A'}</p>
-                        <p className="document-description">{getDescriptionExcerpt(doc.description)}</p>
-                        <p className="document-amount">Amount: ₦ {formatAmount(doc.amount)}</p>
-                        <div className="status-row">
-                          <span className={`status-pill ${badge.className}`}>{badge.label}</span>
-                          {hasEdited && <span className="edited-pill">Edited</span>}
-                        </div>
-                        {doc.status === 'completed' ? (
-                          <p className="document-due due-sent">
-                            Sent on: {doc.date_out ? formatDueDate(doc.date_out) : 'N/A'}
-                          </p>
-                        ) : (
-                          <p className={`document-due ${dueStatus === 'overdue' ? 'due-overdue' : ''}`}>
-                            Due Date: {formatDueDate(doc.due_date)} ({getDueText(doc.due_date)})
-                          </p>
-                        )}
-
-                        <div className="status-control">
-                          <label htmlFor={`status-${doc.id}`}>Status</label>
-                          <select
-                            id={`status-${doc.id}`}
-                            value={doc.status}
-                            onChange={(e) => handleStatusChange(doc, e.target.value, userRole)}
-                          >
-                            <option value="pending">Pending</option>
-                            <option value="in_progress">In Progress</option>
-                            <option value="completed">Sent</option>
-                          </select>
-                        </div>
-
-                        <div className="card-actions">
-                          <button
-                            type="button"
-                            className="btn btn-primary btn-small"
-                            onClick={() => handleEditClick(doc, userRole)}
-                            disabled={hasReachedEditLimit}
-                            title={hasReachedEditLimit ? 'Edit limit reached. Contact your administrator.' : undefined}
-                          >
-                            Edit
-                          </button>
-                          <button type="button" className="btn btn-danger btn-small" onClick={() => setDeleteConfirmId(doc.id)}>
-                            Delete
-                          </button>
-                          <button
-                            type="button"
-                            className={`btn btn-neutral btn-small ${historyExpandedId === doc.id ? 'btn-active' : ''}`}
-                            onClick={() => toggleHistory(doc.id)}
-                          >
-                            {historyExpandedId === doc.id ? 'Hide History' : 'View History'}
-                          </button>
-                        </div>
-                        {hasReachedEditLimit && (
-                          <p className="edit-limit-msg">Edit limit reached. Contact your administrator.</p>
-                        )}
-                        {permissionMessages[doc.id] && (
-                          <p className="inline-permission-msg">{permissionMessages[doc.id]}</p>
-                        )}
-
-                        {historyExpandedId === doc.id && (
-                          <div className="activity-history">
-                            {documentActivityLogs.length === 0 && <p className="empty-msg">No activity yet.</p>}
-                            {documentActivityLogs.length > 0 && (
-                              <ul className="activity-list">
-                                {documentActivityLogs.map((log) => (
-                                  <li key={log.id} className="activity-item">
-                                    <span className="activity-message">
-                                      {formatActivityLog(log, user.id, activityLogUsers)}
-                                    </span>
-                                    <span className="activity-meta">
-                                      {' '}
-                                      {new Date(log.created_at).toLocaleString()}
-                                    </span>
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </article>
-                )
-              })}
+              {filteredDocuments.map((doc) => (
+                <DocumentCard
+                  key={doc.id}
+                  doc={doc}
+                  userRole={userRole}
+                  currentUserId={user.id}
+                  editingId={editingId}
+                  editBeneficiary={editBeneficiary}
+                  setEditBeneficiary={setEditBeneficiary}
+                  editReference={editReference}
+                  setEditReference={setEditReference}
+                  editBatchNumber={editBatchNumber}
+                  setEditBatchNumber={setEditBatchNumber}
+                  editDescription={editDescription}
+                  setEditDescription={setEditDescription}
+                  editAmount={editAmount}
+                  setEditAmount={setEditAmount}
+                  editStatus={editStatus}
+                  setEditStatus={setEditStatus}
+                  editDueDate={editDueDate}
+                  setEditDueDate={setEditDueDate}
+                  historyExpandedId={historyExpandedId}
+                  activityLogs={activityLogs}
+                  activityLogUsers={activityLogUsers}
+                  editCounts={editCounts}
+                  editedCounts={editedCounts}
+                  permissionMessages={permissionMessages}
+                  onEditClick={handleEditClick}
+                  onDeleteClick={setDeleteConfirmId}
+                  onToggleHistory={toggleHistory}
+                  onStatusChange={handleStatusChange}
+                  onInlineEditSave={handleInlineEditSave}
+                  onCancelEdit={cancelEdit}
+                  getBadgeForDocument={getBadgeForDocument}
+                  getDueStatus={getDueStatus}
+                  getDueText={getDueText}
+                  formatDueDate={formatDueDate}
+                  formatAmount={formatAmount}
+                  formatStatusForDisplay={formatStatusForDisplay}
+                  formatDocumentType={formatDocumentType}
+                  getDocumentTypeClassName={getDocumentTypeClassName}
+                  formatActivityLog={formatActivityLog}
+                  getDescriptionExcerpt={getDescriptionExcerpt}
+                  isDocOverdue={isDocOverdue}
+                />
+              ))}
             </div>
           )}
         </section>
