@@ -6,6 +6,7 @@ import DeleteModal from './components/DeleteModal'
 import EditReasonModal from './components/EditReasonModal'
 import PasswordModal from './components/PasswordModal'
 import InactivityModal from './components/InactivityModal'
+import KPIBar from './components/KPIBar'
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -1268,28 +1269,14 @@ function App() {
       </header>
 
       <main className="dashboard-content">
-        <section className="kpi-bar" aria-label="Document Summary">
-          <article className="kpi-card">
-            <p className="kpi-label">Total Documents</p>
-            <p className="kpi-value">{documents.length}</p>
-          </article>
-          <article className="kpi-card">
-            <p className="kpi-label">Total Amount</p>
-            <p className="kpi-value">{formatAmount(totalAmount)}</p>
-          </article>
-          <article className="kpi-card">
-            <p className="kpi-label">Overdue</p>
-            <p className="kpi-value value-overdue">{overdueCount}</p>
-          </article>
-          <article className="kpi-card">
-            <p className="kpi-label">Due Soon</p>
-            <p className="kpi-value">{dueSoonCount}</p>
-          </article>
-          <article className="kpi-card">
-            <p className="kpi-label">Total Sent</p>
-            <p className="kpi-value">{sentCount}</p>
-          </article>
-        </section>
+        <KPIBar
+          totalDocuments={documents.length}
+          totalAmount={totalAmount}
+          overdueCount={overdueCount}
+          dueSoonCount={dueSoonCount}
+          sentCount={sentCount}
+          formatAmount={formatAmount}
+        />
 
         {userRole === 'admin' && (
           <section className="panel export-permissions-panel">
