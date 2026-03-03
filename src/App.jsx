@@ -2,6 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { createClient } from '@supabase/supabase-js'
 import * as XLSX from 'xlsx'
+import DeleteModal from './components/DeleteModal'
+import EditReasonModal from './components/EditReasonModal'
+import PasswordModal from './components/PasswordModal'
+import InactivityModal from './components/InactivityModal'
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -1725,125 +1729,44 @@ function App() {
         </section>
 
         {editReasonModalDocument && (
-          <div className="modal-overlay">
-            <div className="edit-reason-modal" role="dialog" aria-modal="true" aria-labelledby="edit-reason-title">
-              <h3 id="edit-reason-title" className="edit-reason-title">Reason for Edit</h3>
-              <div className="form-group">
-                <label htmlFor="edit-reason-textarea">Please provide a reason for editing this document.</label>
-                <textarea
-                  id="edit-reason-textarea"
-                  value={editReason}
-                  onChange={(e) => setEditReason(e.target.value)}
-                  rows={4}
-                  required
-                  autoFocus
-                />
-              </div>
-              <div className="edit-reason-actions">
-                <button type="button" className="btn btn-primary" onClick={handleEditReasonContinue}>
-                  Continue
-                </button>
-                <button type="button" className="btn btn-neutral" onClick={handleEditReasonCancel}>
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
+          <EditReasonModal
+            document={editReasonModalDocument}
+            editReason={editReason}
+            onReasonChange={setEditReason}
+            onContinue={handleEditReasonContinue}
+            onCancel={handleEditReasonCancel}
+          />
         )}
 
         {deleteConfirmDocument && (
-          <div className="modal-overlay">
-            <div className="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="delete-confirm-message">
-              <p id="delete-confirm-message" className="confirm-modal-message">
-                Are you sure you want to delete this document? This action cannot be undone.
-              </p>
-              <p className="confirm-modal-detail">
-                Beneficiary: <strong>{deleteConfirmDocument.beneficiary || 'N/A'}</strong>
-              </p>
-              <p className="confirm-modal-detail">
-                Reference Number / Payment Voucher Number: <strong>{deleteConfirmDocument.reference || 'N/A'}</strong>
-              </p>
-              <div className="confirm-modal-actions">
-                <button
-                  type="button"
-                  className="btn btn-danger"
-                  onClick={async () => {
-                    await handleDeleteClick(deleteConfirmDocument, userRole)
-                    setDeleteConfirmId(null)
-                  }}
-                >
-                  Delete
-                </button>
-                <button type="button" className="btn btn-neutral" onClick={() => setDeleteConfirmId(null)}>
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
+          <DeleteModal
+            document={deleteConfirmDocument}
+            onConfirm={async () => {
+              await handleDeleteClick(deleteConfirmDocument, userRole)
+              setDeleteConfirmId(null)
+            }}
+            onCancel={() => setDeleteConfirmId(null)}
+          />
         )}
 
         {passwordModalOpen && (
-          <div className="modal-overlay">
-            <div className="password-modal" role="dialog" aria-modal="true" aria-labelledby="change-password-title">
-              <h3 id="change-password-title" className="password-modal-title">Change Password</h3>
-              <form onSubmit={handlePasswordUpdate}>
-                <div className="form-group">
-                  <label htmlFor="current-password">Current Password</label>
-                  <input
-                    id="current-password"
-                    type="password"
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="new-password">New Password</label>
-                  <input
-                    id="new-password"
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="confirm-new-password">Confirm New Password</label>
-                  <input
-                    id="confirm-new-password"
-                    type="password"
-                    value={confirmNewPassword}
-                    onChange={(e) => setConfirmNewPassword(e.target.value)}
-                    required
-                  />
-                </div>
-                {passwordError && <p className="error-msg">{passwordError}</p>}
-                {passwordSuccess && <p className="success-msg">{passwordSuccess}</p>}
-                <div className="password-modal-actions">
-                  <button type="submit" className="btn btn-primary" disabled={passwordUpdating}>
-                    {passwordUpdating ? 'Updating...' : 'Update Password'}
-                  </button>
-                  <button type="button" className="btn btn-neutral" onClick={closePasswordModal}>
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
+          <PasswordModal
+            currentPassword={currentPassword}
+            newPassword={newPassword}
+            confirmNewPassword={confirmNewPassword}
+            passwordError={passwordError}
+            passwordSuccess={passwordSuccess}
+            passwordUpdating={passwordUpdating}
+            onCurrentPasswordChange={setCurrentPassword}
+            onNewPasswordChange={setNewPassword}
+            onConfirmNewPasswordChange={setConfirmNewPassword}
+            onSubmit={handlePasswordUpdate}
+            onCancel={closePasswordModal}
+          />
         )}
 
         {showInactivityWarning && (
-          <div className="modal-overlay" onClick={resetInactivityTimer}>
-            <div className="inactivity-modal" role="alertdialog" aria-modal="true">
-              <h3 className="inactivity-modal-title">Session Expiring</h3>
-              <p className="inactivity-modal-body">
-                You'll be logged out in <strong>{inactivityCountdown}</strong> second(s) due to inactivity.
-              </p>
-              <button type="button" className="btn btn-primary" onClick={resetInactivityTimer}>
-                Stay Logged In
-              </button>
-            </div>
-          </div>
+          <InactivityModal countdown={inactivityCountdown} onStayLoggedIn={resetInactivityTimer} />
         )}
 
         {userRole === 'admin' && (
