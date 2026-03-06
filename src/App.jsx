@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { createClient } from '@supabase/supabase-js'
 import * as XLSX from 'xlsx'
+import { CalendarClock, Eye, EyeOff, FileSpreadsheet, ShieldCheck } from 'lucide-react'
 import DeleteModal from './components/DeleteModal'
 import EditReasonModal from './components/EditReasonModal'
 import PasswordModal from './components/PasswordModal'
@@ -22,6 +23,7 @@ function App() {
   const [error, setError] = useState(null)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loginLoading, setLoginLoading] = useState(false)
 
   const [documents, setDocuments] = useState([])
@@ -818,6 +820,7 @@ function App() {
 
     setEmail('')
     setPassword('')
+    setShowPassword(false)
   }
 
   async function handleLogout() {
@@ -1541,10 +1544,15 @@ function App() {
               <ul className="export-history-list">
                 {exportLogs.map((log) => (
                   <li key={log.id} className="export-history-item">
-                    <p className="export-history-primary">{log.exporterName || 'Unknown User'}</p>
-                    <p className="export-history-meta">
-                      {log.month_year} | {log.record_count} record(s) | {new Date(log.exported_at).toLocaleString()}
-                    </p>
+                    <span className="export-history-icon" aria-hidden="true">
+                      <FileSpreadsheet size={16} strokeWidth={2.1} />
+                    </span>
+                    <div className="export-history-content">
+                      <p className="export-history-primary">{log.exporterName || 'Unknown User'}</p>
+                      <p className="export-history-meta">
+                        {log.month_year} | {log.record_count} record(s) | {new Date(log.exported_at).toLocaleString()}
+                      </p>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -1557,38 +1565,94 @@ function App() {
 
   const loginView = (
     <div className="auth-shell">
-      <div className="auth-card">
-        <h1>Document Tracker</h1>
-        <p className="auth-subtitle">Sign in to continue.</p>
-        <form onSubmit={handleLogin}>
-          <div className="form-group">
-            <label htmlFor="email">Email</label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoComplete="email"
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="password">Password</label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              autoComplete="current-password"
-            />
-          </div>
-          {error && <p className="error-msg">{error}</p>}
-          <button type="submit" className="btn btn-primary full-width" disabled={loginLoading}>
-            {loginLoading ? 'Signing in...' : 'Sign In'}
-          </button>
-        </form>
-      </div>
+      <section className="auth-hero" aria-label="Product highlights">
+        <div className="auth-brand">
+          <span className="auth-logo" aria-hidden="true">
+            <FileSpreadsheet size={18} strokeWidth={2.1} />
+          </span>
+          <span className="auth-brand-name">Document Tracker</span>
+        </div>
+
+        <div className="auth-hero-content">
+          <h1>Every document. Accounted for.</h1>
+          <p>
+            Keep every case document traceable from intake to completion in one clean, shared
+            workspace.
+          </p>
+
+          <ul className="auth-feature-list">
+            <li>
+              <span className="auth-feature-icon" aria-hidden="true">
+                <ShieldCheck size={15} strokeWidth={2.2} />
+              </span>
+              <span>Full audit trail</span>
+            </li>
+            <li>
+              <span className="auth-feature-icon" aria-hidden="true">
+                <FileSpreadsheet size={15} strokeWidth={2.2} />
+              </span>
+              <span>Monthly Excel export</span>
+            </li>
+            <li>
+              <span className="auth-feature-icon" aria-hidden="true">
+                <CalendarClock size={15} strokeWidth={2.2} />
+              </span>
+              <span>Auto due dates</span>
+            </li>
+          </ul>
+        </div>
+      </section>
+
+      <section className="auth-panel" aria-label="Sign in form">
+        <div className="auth-form-wrap">
+          <h2>Welcome back</h2>
+          <p className="auth-subtitle">Sign in with your workspace credentials.</p>
+
+          <form className="auth-form" onSubmit={handleLogin}>
+            <div className="auth-form-group">
+              <label htmlFor="email">Email address</label>
+              <input
+                id="email"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+              />
+            </div>
+
+            <div className="auth-form-group">
+              <label htmlFor="password">Password</label>
+              <div className="auth-password-field">
+                <input
+                  id="password"
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  className="auth-password-toggle"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  aria-pressed={showPassword}
+                >
+                  {showPassword ? <EyeOff size={14} strokeWidth={2.2} /> : <Eye size={14} strokeWidth={2.2} />}
+                  <span>{showPassword ? 'Hide' : 'Show'}</span>
+                </button>
+              </div>
+            </div>
+
+            {error && <p className="error-msg">{error}</p>}
+
+            <button type="submit" className="auth-submit-btn" disabled={loginLoading}>
+              {loginLoading ? 'Signing in...' : 'Sign in to workspace'}
+            </button>
+          </form>
+        </div>
+      </section>
     </div>
   )
 

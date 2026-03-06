@@ -9,9 +9,9 @@ export default function KPIBar({ totalDocuments, totalAmount, overdueCount, dueS
         <p className="kpi-label">Total Amount</p>
         <p className="kpi-value">{formatAmount(totalAmount)}</p>
       </article>
-      <article className="kpi-card">
+      <article className="kpi-card kpi-card-overdue">
         <p className="kpi-label">Overdue</p>
-        <p className="kpi-value value-overdue">{overdueCount}</p>
+        <p className="kpi-value kpi-value-overdue">{overdueCount}</p>
       </article>
       <article className="kpi-card">
         <p className="kpi-label">Due Soon</p>

@@ -27,7 +27,7 @@ export default function DocumentForm({
       </div>
       <form className="create-form" onSubmit={onSubmit}>
         <div className="form-group">
-          <label htmlFor="beneficiary">Beneficiary</label>
+          <label className="create-label" htmlFor="beneficiary">Beneficiary</label>
           <input
             id="beneficiary"
             type="text"
@@ -37,7 +37,7 @@ export default function DocumentForm({
           />
         </div>
         <div className="form-group">
-          <label htmlFor="reference">Reference Number / Payment Voucher Number</label>
+          <label className="create-label" htmlFor="reference">Reference number / payment voucher number</label>
           <input
             id="reference"
             type="text"
@@ -48,7 +48,7 @@ export default function DocumentForm({
           />
         </div>
         <div className="form-group">
-          <label htmlFor="batch-number">Batch Number</label>
+          <label className="create-label" htmlFor="batch-number">Batch number</label>
           <input
             id="batch-number"
             type="text"
@@ -60,7 +60,7 @@ export default function DocumentForm({
             <p className="detected-type-label">Detected: {formatDocumentType(detectedDocumentType)}</p>
           ) : (
             <div className="manual-type-select-wrap">
-              <label htmlFor="manual-document-type">Select type</label>
+              <label className="create-label" htmlFor="manual-document-type">Select type</label>
               <select
                 id="manual-document-type"
                 value={manualDocumentType}
@@ -74,7 +74,7 @@ export default function DocumentForm({
           )}
         </div>
         <div className="form-group">
-          <label htmlFor="description">Description</label>
+          <label className="create-label" htmlFor="description">Description</label>
           <textarea
             id="description"
             value={description}
@@ -84,7 +84,7 @@ export default function DocumentForm({
           />
         </div>
         <div className="form-group">
-          <label htmlFor="amount">Amount</label>
+          <label className="create-label" htmlFor="amount">Amount</label>
           <input
             id="amount"
             type="number"
@@ -96,7 +96,7 @@ export default function DocumentForm({
           />
         </div>
         <div className="form-group">
-          <label htmlFor="status">Status</label>
+          <label className="create-label" htmlFor="status">Status</label>
           <select id="status" value={status} onChange={(e) => setStatus(e.target.value)}>
             <option value="pending">Pending</option>
             <option value="in_progress">In Progress</option>
