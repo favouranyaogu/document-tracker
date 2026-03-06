@@ -162,7 +162,8 @@ body {
   position: absolute;
   right: 0;
   top: calc(100% + 0.4rem);
-  width: 300px;
+  width: 20rem;
+  max-width: 90vw;
   background: #ffffff;
   border: 1px solid #d7dfeb;
   border-radius: 10px;
@@ -1078,12 +1079,15 @@ select:focus {
   }
 }
 
-@media (max-width: 600px) {
-  .notifications-dropdown {
-    right: auto;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 280px;
+@media (max-width: 768px) {
+  .controls-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .controls-row .control-field {
+    width: 100%;
+    flex: 1 1 100%;
   }
 }
 
@@ -1095,11 +1099,22 @@ select:focus {
 
   .nav-user {
     width: 100%;
-    justify-content: space-between;
+    justify-content: flex-end;
+    gap: 0.5rem;
   }
 
   .user-email {
+    order: -1;
+    flex: 1 0 100%;
     max-width: 100%;
+  }
+
+  .account-menu {
+    order: 1;
+  }
+
+  .notifications-menu {
+    order: 2;
   }
 
   .controls-row {
