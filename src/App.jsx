@@ -2,7 +2,20 @@ import { useEffect, useRef, useState } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import { createClient } from '@supabase/supabase-js'
 import * as XLSX from 'xlsx'
-import { CalendarClock, Eye, EyeOff, FileSpreadsheet, ShieldCheck } from 'lucide-react'
+import {
+  CalendarClock,
+  ClipboardList,
+  Download,
+  Eye,
+  EyeOff,
+  FileSpreadsheet,
+  Files,
+  KeyRound,
+  LayoutDashboard,
+  LogOut,
+  Shield,
+  ShieldCheck
+} from 'lucide-react'
 import DeleteModal from './components/DeleteModal'
 import EditReasonModal from './components/EditReasonModal'
 import PasswordModal from './components/PasswordModal'
@@ -10,7 +23,6 @@ import InactivityModal from './components/InactivityModal'
 import KPIBar from './components/KPIBar'
 import DocumentForm from './components/DocumentForm'
 import DocumentCard from './components/DocumentCard'
-import Navbar from './components/Navbar'
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -40,8 +52,7 @@ function App() {
   const [submitLoading, setSubmitLoading] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [deleteConfirmId, setDeleteConfirmId] = useState(null)
-  const [accountMenuOpen, setAccountMenuOpen] = useState(false)
-  const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const [activeSidebarLink, setActiveSidebarLink] = useState('dashboard')
   const [passwordModalOpen, setPasswordModalOpen] = useState(false)
   const [showInactivityWarning, setShowInactivityWarning] = useState(false)
   const [inactivityCountdown, setInactivityCountdown] = useState(120)
@@ -84,8 +95,15 @@ function App() {
   const [exportLogs, setExportLogs] = useState([])
   const [exportLogsLoading, setExportLogsLoading] = useState(false)
   const [exportLogsError, setExportLogsError] = useState(null)
-  const accountMenuRef = useRef(null)
-  const notificationsRef = useRef(null)
+  const [recentAuditLogs, setRecentAuditLogs] = useState([])
+  const [recentAuditUsers, setRecentAuditUsers] = useState({})
+  const [recentAuditLoading, setRecentAuditLoading] = useState(false)
+  const [recentAuditError, setRecentAuditError] = useState(null)
+  const dashboardSectionRef = useRef(null)
+  const documentsSectionRef = useRef(null)
+  const exportSectionRef = useRef(null)
+  const auditSectionRef = useRef(null)
+  const permissionsSectionRef = useRef(null)
   const passwordCloseTimerRef = useRef(null)
   const inactivityTimerRef = useRef(null)
   const countdownIntervalRef = useRef(null)
@@ -221,6 +239,54 @@ function App() {
     setExportLogsLoading(false)
   }
 
+  async function fetchRecentAuditLogs() {
+    if (!user) return
+
+    setRecentAuditLoading(true)
+    setRecentAuditError(null)
+
+    const { data: logsData, error: logsError } = await supabase
+      .from('activity_logs')
+      .select('id, document_id, action, old_value, new_value, user_id, created_at')
+      .order('created_at', { ascending: false })
+      .limit(12)
+
+    if (logsError) {
+      setRecentAuditError(logsError.message)
+      setRecentAuditLoading(false)
+      return
+    }
+
+    const logs = logsData || []
+    setRecentAuditLogs(logs)
+
+    const actorIds = [...new Set(logs.map((log) => log.user_id).filter(Boolean))]
+    if (actorIds.length === 0) {
+      setRecentAuditUsers({})
+      setRecentAuditLoading(false)
+      return
+    }
+
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('id, name')
+      .in('id', actorIds)
+
+    if (profileError) {
+      setRecentAuditError(profileError.message)
+      setRecentAuditLoading(false)
+      return
+    }
+
+    const userMap = (profileData || []).reduce((acc, profile) => {
+      acc[profile.id] = profile.name
+      return acc
+    }, {})
+
+    setRecentAuditUsers(userMap)
+    setRecentAuditLoading(false)
+  }
+
   async function handleToggleExportPermission(staffUserId) {
     if (!user || user.role !== 'admin') return
 
@@ -291,22 +357,6 @@ function App() {
     }
   }, [])
 
-  useEffect(() => {
-    function handleDocumentClick(event) {
-      if (accountMenuRef.current && !accountMenuRef.current.contains(event.target)) {
-        setAccountMenuOpen(false)
-      }
-      if (notificationsRef.current && !notificationsRef.current.contains(event.target)) {
-        setNotificationsOpen(false)
-      }
-    }
-
-    document.addEventListener('mousedown', handleDocumentClick)
-    return () => {
-      document.removeEventListener('mousedown', handleDocumentClick)
-    }
-  }, [])
-
   useEffect(() => (
     () => {
       if (passwordCloseTimerRef.current) {
@@ -317,8 +367,7 @@ function App() {
 
   useEffect(() => {
     if (!user) {
-      setAccountMenuOpen(false)
-      setNotificationsOpen(false)
+      setActiveSidebarLink('dashboard')
       setPasswordModalOpen(false)
       setShowInactivityWarning(false)
       setInactivityCountdown(120)
@@ -347,12 +396,17 @@ function App() {
       setPermissionActionId(null)
       setExportLogs([])
       setExportLogsError(null)
+      setRecentAuditLogs([])
+      setRecentAuditUsers({})
+      setRecentAuditLoading(false)
+      setRecentAuditError(null)
       return
     }
 
     if (!user.role) return
 
     fetchUserExportPermission(user)
+    fetchRecentAuditLogs()
 
     if (user.role === 'admin') {
       fetchStaffExportPermissions()
@@ -383,6 +437,7 @@ function App() {
     const nextDocuments = data || []
     setDocuments(nextDocuments)
     fetchEditCounts(nextDocuments)
+    fetchRecentAuditLogs()
   }
 
   async function fetchEditCounts(nextDocuments) {
@@ -824,7 +879,6 @@ function App() {
   }
 
   async function handleLogout() {
-    setAccountMenuOpen(false)
     await supabase.auth.signOut()
   }
 
@@ -905,7 +959,6 @@ function App() {
   }
 
   function openPasswordModal() {
-    setAccountMenuOpen(false)
     setPasswordModalOpen(true)
     setPasswordError('')
     setPasswordSuccess('')
@@ -959,7 +1012,7 @@ function App() {
   }
 
   async function handleExportMonthlyReport() {
-    if (!user || !canExport) return
+    if (!user || !(user.role === 'admin' || canExport)) return
 
     const monthNumber = Number(selectedExportMonth)
     const yearNumber = Number(selectedExportYear)
@@ -1135,6 +1188,18 @@ function App() {
     return value === 'third_party' ? 'doc-type-third-party' : 'doc-type-claims'
   }
 
+  function handleSidebarNavigation(linkKey, targetRef, disabled = false) {
+    if (disabled) return
+
+    setActiveSidebarLink(linkKey)
+    if (!targetRef?.current) return
+
+    targetRef.current.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start'
+    })
+  }
+
   const activeTabDocuments = documents.filter((doc) => doc.document_type === activeTab)
   const detectedDocumentType = detectDocumentType(batchNumber)
 
@@ -1160,21 +1225,53 @@ function App() {
 
   const overdueCount = documents.filter(isDocOverdue).length
   const dueSoonCount = documents.filter(isDueSoon).length
-  const notifications = documents
-    .filter((doc) => isDocOverdue(doc) || isDueSoon(doc))
-    .map((doc) => ({
-      id: doc.id,
-      beneficiary: doc.beneficiary,
-      message: isDocOverdue(doc)
-        ? `Overdue: ${getDueText(doc.due_date)}`
-        : `Due soon: ${getDueText(doc.due_date)}`,
-      type: isDocOverdue(doc) ? 'overdue' : 'due_soon'
-    }))
-    .sort((a, b) => (a.type === 'overdue' ? -1 : 1))
   const sentCount = documents.filter((doc) => doc.status === 'completed').length
   const totalAmount = documents.reduce((sum, doc) => sum + (Number(doc.amount) || 0), 0)
   const userRole = user?.role === 'admin' ? 'admin' : 'staff'
+  const hasExportAccess = userRole === 'admin' || canExport
   const displayName = user?.name || user?.email || 'Unknown User'
+  const documentReferenceMap = documents.reduce((acc, doc) => {
+    acc[doc.id] = doc.reference || doc.batch_number || 'Unknown document'
+    return acc
+  }, {})
+  const sidebarLinks = [
+    {
+      key: 'dashboard',
+      label: 'Dashboard',
+      icon: LayoutDashboard,
+      targetRef: dashboardSectionRef,
+      disabled: false
+    },
+    {
+      key: 'documents',
+      label: 'Documents',
+      icon: Files,
+      targetRef: documentsSectionRef,
+      disabled: false,
+      badge: documents.length
+    },
+    {
+      key: 'export',
+      label: 'Export',
+      icon: Download,
+      targetRef: userRole === 'admin' ? exportSectionRef : documentsSectionRef,
+      disabled: !hasExportAccess
+    },
+    {
+      key: 'audit',
+      label: 'Audit Log',
+      icon: ClipboardList,
+      targetRef: auditSectionRef,
+      disabled: false
+    },
+    {
+      key: 'permissions',
+      label: 'Permissions',
+      icon: Shield,
+      targetRef: permissionsSectionRef,
+      disabled: userRole !== 'admin'
+    }
+  ]
   const editReasonModalDocument = documents.find((doc) => doc.id === editReasonModalId)
   const deleteConfirmDocument = documents.find((doc) => doc.id === deleteConfirmId)
   const monthOptions = [
@@ -1210,66 +1307,77 @@ function App() {
   }
 
   const dashboardView = (
-    <div className="app-shell">
-      <Navbar
-        displayName={displayName}
-        userRole={userRole}
-        userEmail={user?.email}
-        notifications={notifications}
-        notificationsOpen={notificationsOpen}
-        onToggleNotifications={() => setNotificationsOpen((prev) => !prev)}
-        notificationsRef={notificationsRef}
-        accountMenuOpen={accountMenuOpen}
-        onToggleAccountMenu={() => setAccountMenuOpen((prev) => !prev)}
-        accountMenuRef={accountMenuRef}
-        onOpenPasswordModal={openPasswordModal}
-        onLogout={handleLogout}
-      />
+    <div className="app-shell app-shell-dashboard">
+      <aside className="app-sidebar" aria-label="Workspace navigation">
+        <div className="sidebar-main">
+          <div className="sidebar-brand">
+            <span className="sidebar-logo" aria-hidden="true">
+              <FileSpreadsheet size={16} strokeWidth={2.1} />
+            </span>
+            <div>
+              <p className="sidebar-brand-title">Document Tracker</p>
+              <p className="sidebar-brand-subtitle">Workspace</p>
+            </div>
+          </div>
+
+          <nav className="sidebar-nav" aria-label="Primary">
+            {sidebarLinks.map((link) => {
+              const LinkIcon = link.icon
+              const isActive = activeSidebarLink === link.key && !link.disabled
+              return (
+                <button
+                  key={link.key}
+                  type="button"
+                  className={`sidebar-link ${isActive ? 'sidebar-link-active' : ''}`}
+                  disabled={link.disabled}
+                  onClick={() => handleSidebarNavigation(link.key, link.targetRef, link.disabled)}
+                  aria-current={isActive ? 'page' : undefined}
+                >
+                  <span className="sidebar-link-icon" aria-hidden="true">
+                    <LinkIcon size={16} strokeWidth={2.1} />
+                  </span>
+                  <span className="sidebar-link-label">{link.label}</span>
+                  {typeof link.badge === 'number' && (
+                    <span className="sidebar-doc-count">{link.badge}</span>
+                  )}
+                </button>
+              )
+            })}
+          </nav>
+        </div>
+
+        <div className="sidebar-footer">
+          <p className="sidebar-user-name">{displayName}</p>
+          <span className={`role-badge role-badge-${userRole}`}>{userRole}</span>
+          <p className="sidebar-user-email">{user?.email}</p>
+          <div className="sidebar-user-actions">
+            <button type="button" className="sidebar-action-btn" onClick={openPasswordModal}>
+              <KeyRound size={14} strokeWidth={2.1} />
+              <span>Change password</span>
+            </button>
+            <button
+              type="button"
+              className="sidebar-action-btn sidebar-action-btn-danger"
+              onClick={handleLogout}
+            >
+              <LogOut size={14} strokeWidth={2.1} />
+              <span>Logout</span>
+            </button>
+          </div>
+        </div>
+      </aside>
 
       <main className="dashboard-content">
-        <KPIBar
-          totalDocuments={documents.length}
-          totalAmount={totalAmount}
-          overdueCount={overdueCount}
-          dueSoonCount={dueSoonCount}
-          sentCount={sentCount}
-          formatAmount={formatAmount}
-        />
-
-        {userRole === 'admin' && (
-          <section className="panel export-permissions-panel">
-            <div className="panel-heading">
-              <h2>Export Permissions</h2>
-              <p>Grant or revoke export access for staff users.</p>
-            </div>
-            {permissionsError && <p className="error-msg">{permissionsError}</p>}
-            {permissionsLoading && <p className="loading-msg">Loading permissions...</p>}
-            {!permissionsLoading && staffUsers.length === 0 && (
-              <p className="empty-msg">No staff users found.</p>
-            )}
-            {!permissionsLoading && staffUsers.length > 0 && (
-              <ul className="permission-list">
-                {staffUsers.map((staffUser) => {
-                  const hasAccess = Boolean(staffExportAccess[staffUser.id])
-                  const buttonLabel = hasAccess ? 'Revoke Access' : 'Grant Access'
-                  return (
-                    <li key={staffUser.id} className="permission-item">
-                      <span className="permission-user-name">{staffUser.name || staffUser.id}</span>
-                      <button
-                        type="button"
-                        className={`btn btn-small ${hasAccess ? 'btn-danger' : 'btn-primary'}`}
-                        disabled={permissionActionId === staffUser.id}
-                        onClick={() => handleToggleExportPermission(staffUser.id)}
-                      >
-                        {permissionActionId === staffUser.id ? 'Saving...' : buttonLabel}
-                      </button>
-                    </li>
-                  )
-                })}
-              </ul>
-            )}
-          </section>
-        )}
+        <section ref={dashboardSectionRef} className="sidebar-target">
+          <KPIBar
+            totalDocuments={documents.length}
+            totalAmount={totalAmount}
+            overdueCount={overdueCount}
+            dueSoonCount={dueSoonCount}
+            sentCount={sentCount}
+            formatAmount={formatAmount}
+          />
+        </section>
 
         <DocumentForm
           beneficiary={beneficiary}
@@ -1293,7 +1401,11 @@ function App() {
           formatDocumentType={formatDocumentType}
         />
 
-        <section className="panel documents-panel" data-print-title="Third Party Documents">
+        <section
+          ref={documentsSectionRef}
+          className="panel documents-panel sidebar-target"
+          data-print-title="Third Party Documents"
+        >
           <div className="tab-switcher" role="tablist" aria-label="Document Type Tabs">
             <button
               type="button"
@@ -1324,7 +1436,7 @@ function App() {
               >
                 Print List
               </button>
-              {canExport && (
+              {hasExportAccess && (
                 <button
                   type="button"
                   className="btn btn-primary"
@@ -1339,7 +1451,7 @@ function App() {
             </div>
           </div>
 
-          {canExport && exportPickerOpen && (
+          {hasExportAccess && exportPickerOpen && (
             <div className="export-picker">
               <div className="export-picker-controls">
                 <div className="form-group export-control">
@@ -1488,6 +1600,96 @@ function App() {
           )}
         </section>
 
+        {userRole === 'admin' && (
+          <section ref={exportSectionRef} className="panel export-history-panel sidebar-target">
+            <div className="panel-heading">
+              <h2>Export History</h2>
+              <p>Who exported, when, and how many records were included.</p>
+            </div>
+            {exportLogsError && <p className="error-msg">{exportLogsError}</p>}
+            {exportLogsLoading && <p className="loading-msg">Loading export history...</p>}
+            {!exportLogsLoading && exportLogs.length === 0 && (
+              <p className="empty-msg">No export history yet.</p>
+            )}
+            {!exportLogsLoading && exportLogs.length > 0 && (
+              <ul className="export-history-list">
+                {exportLogs.map((log) => (
+                  <li key={log.id} className="export-history-item">
+                    <span className="export-history-icon" aria-hidden="true">
+                      <FileSpreadsheet size={16} strokeWidth={2.1} />
+                    </span>
+                    <div className="export-history-content">
+                      <p className="export-history-primary">{log.exporterName || 'Unknown User'}</p>
+                      <p className="export-history-meta">
+                        {log.month_year} | {log.record_count} record(s) | {new Date(log.exported_at).toLocaleString()}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
+
+        <section ref={auditSectionRef} className="panel audit-log-panel sidebar-target">
+          <div className="panel-heading">
+            <h2>Audit Log</h2>
+            <p>Recent actions captured across the workspace.</p>
+          </div>
+          {recentAuditError && <p className="error-msg">{recentAuditError}</p>}
+          {recentAuditLoading && <p className="loading-msg">Loading audit log...</p>}
+          {!recentAuditLoading && recentAuditLogs.length === 0 && (
+            <p className="empty-msg">No audit events yet.</p>
+          )}
+          {!recentAuditLoading && recentAuditLogs.length > 0 && (
+            <ul className="audit-log-list">
+              {recentAuditLogs.map((log) => (
+                <li key={log.id} className="audit-log-item">
+                  <p className="audit-log-primary">{formatActivityLog(log, user.id, recentAuditUsers)}</p>
+                  <p className="audit-log-meta">
+                    {documentReferenceMap[log.document_id] || 'Unknown document'} | {new Date(log.created_at).toLocaleString()}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        {userRole === 'admin' && (
+          <section ref={permissionsSectionRef} className="panel export-permissions-panel sidebar-target">
+            <div className="panel-heading">
+              <h2>Export Permissions</h2>
+              <p>Grant or revoke export access for staff users.</p>
+            </div>
+            {permissionsError && <p className="error-msg">{permissionsError}</p>}
+            {permissionsLoading && <p className="loading-msg">Loading permissions...</p>}
+            {!permissionsLoading && staffUsers.length === 0 && (
+              <p className="empty-msg">No staff users found.</p>
+            )}
+            {!permissionsLoading && staffUsers.length > 0 && (
+              <ul className="permission-list">
+                {staffUsers.map((staffUser) => {
+                  const hasAccess = Boolean(staffExportAccess[staffUser.id])
+                  const buttonLabel = hasAccess ? 'Revoke Access' : 'Grant Access'
+                  return (
+                    <li key={staffUser.id} className="permission-item">
+                      <span className="permission-user-name">{staffUser.name || staffUser.id}</span>
+                      <button
+                        type="button"
+                        className={`btn btn-small ${hasAccess ? 'btn-danger' : 'btn-primary'}`}
+                        disabled={permissionActionId === staffUser.id}
+                        onClick={() => handleToggleExportPermission(staffUser.id)}
+                      >
+                        {permissionActionId === staffUser.id ? 'Saving...' : buttonLabel}
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </section>
+        )}
+
         {editReasonModalDocument && (
           <EditReasonModal
             document={editReasonModalDocument}
@@ -1527,37 +1729,6 @@ function App() {
 
         {showInactivityWarning && (
           <InactivityModal countdown={inactivityCountdown} onStayLoggedIn={resetInactivityTimer} />
-        )}
-
-        {userRole === 'admin' && (
-          <section className="panel export-history-panel">
-            <div className="panel-heading">
-              <h2>Export History</h2>
-              <p>Who exported, when, and how many records were included.</p>
-            </div>
-            {exportLogsError && <p className="error-msg">{exportLogsError}</p>}
-            {exportLogsLoading && <p className="loading-msg">Loading export history...</p>}
-            {!exportLogsLoading && exportLogs.length === 0 && (
-              <p className="empty-msg">No export history yet.</p>
-            )}
-            {!exportLogsLoading && exportLogs.length > 0 && (
-              <ul className="export-history-list">
-                {exportLogs.map((log) => (
-                  <li key={log.id} className="export-history-item">
-                    <span className="export-history-icon" aria-hidden="true">
-                      <FileSpreadsheet size={16} strokeWidth={2.1} />
-                    </span>
-                    <div className="export-history-content">
-                      <p className="export-history-primary">{log.exporterName || 'Unknown User'}</p>
-                      <p className="export-history-meta">
-                        {log.month_year} | {log.record_count} record(s) | {new Date(log.exported_at).toLocaleString()}
-                      </p>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
         )}
       </main>
     </div>

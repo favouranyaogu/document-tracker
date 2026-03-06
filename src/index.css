@@ -32,9 +32,16 @@ body {
 }
 
 .app-shell {
-  max-width: 1180px;
-  margin: 0 auto;
-  padding: 1.5rem 1.5rem 2.5rem;
+  min-height: 100vh;
+}
+
+.app-shell-dashboard {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: stretch;
+  background: #f4f6fb;
 }
 
 .app-loading {
@@ -42,6 +49,193 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.app-sidebar {
+  width: 270px;
+  flex: 0 0 270px;
+  background: #0d0e14;
+  border-right: 1px solid #1f2431;
+  color: #cbd5e1;
+  padding: 1.1rem 0.9rem 1rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
+.sidebar-main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.25rem 0.15rem;
+}
+
+.sidebar-logo {
+  width: 2.05rem;
+  height: 2.05rem;
+  border-radius: 0.62rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #c7d2fe;
+  border: 1px solid #293246;
+  background: rgba(67, 56, 202, 0.18);
+}
+
+.sidebar-brand-title {
+  margin: 0;
+  color: #f1f5f9;
+  font-size: 0.93rem;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+}
+
+.sidebar-brand-subtitle {
+  margin: 0.08rem 0 0;
+  color: #7c88a5;
+  font-size: 0.74rem;
+  font-weight: 600;
+}
+
+.sidebar-nav {
+  display: grid;
+  gap: 0.18rem;
+}
+
+.sidebar-link {
+  width: 100%;
+  border: none;
+  border-left: 2px solid transparent;
+  border-radius: 0 10px 10px 0;
+  background: transparent;
+  color: #9aa6bd;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.62rem 0.7rem 0.62rem 0.82rem;
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+}
+
+.sidebar-link:hover:not(:disabled) {
+  background: #161b27;
+  color: #dbeafe;
+}
+
+.sidebar-link-active {
+  color: #a5b4fc;
+  border-left-color: #6366f1;
+  background: rgba(79, 70, 229, 0.14);
+}
+
+.sidebar-link:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.sidebar-link-icon {
+  width: 1.15rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+}
+
+.sidebar-link-label {
+  min-width: 0;
+}
+
+.sidebar-doc-count {
+  margin-left: auto;
+  min-width: 1.5rem;
+  height: 1.35rem;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 0.35rem;
+  background: #1f2738;
+  color: #c7d2fe;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.sidebar-link-active .sidebar-doc-count {
+  background: rgba(79, 70, 229, 0.22);
+}
+
+.sidebar-footer {
+  border-top: 1px solid #1f2431;
+  padding-top: 0.85rem;
+}
+
+.sidebar-user-name {
+  margin: 0;
+  color: #f8fafc;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.sidebar-user-email {
+  margin: 0.3rem 0 0;
+  color: #9aa6bd;
+  font-size: 0.82rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sidebar-footer .role-badge {
+  margin-top: 0.42rem;
+}
+
+.sidebar-user-actions {
+  margin-top: 0.8rem;
+  display: grid;
+  gap: 0.45rem;
+}
+
+.sidebar-action-btn {
+  border: 1px solid #2a3246;
+  background: #141a25;
+  color: #dbeafe;
+  border-radius: 8px;
+  padding: 0.46rem 0.58rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sidebar-action-btn:hover {
+  background: #1a2333;
+}
+
+.sidebar-action-btn-danger {
+  border-color: #432727;
+  color: #fecaca;
+}
+
+.sidebar-action-btn-danger:hover {
+  background: #2b1a1a;
 }
 
 .top-nav {
@@ -311,9 +505,16 @@ body {
 }
 
 .dashboard-content {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 1.4rem 1.5rem 2.2rem;
   display: flex;
   flex-direction: column;
   gap: 1.25rem;
+}
+
+.sidebar-target {
+  scroll-margin-top: 1rem;
 }
 
 .kpi-bar {
@@ -1069,6 +1270,34 @@ select:focus {
   color: #64748b;
 }
 
+.audit-log-list {
+  list-style: none;
+  margin: 0.85rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.52rem;
+}
+
+.audit-log-item {
+  border: 1px solid #dbe3ef;
+  border-radius: 10px;
+  background: #ffffff;
+  padding: 0.7rem 0.78rem;
+}
+
+.audit-log-primary {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.audit-log-meta {
+  margin: 0.2rem 0 0;
+  font-size: 0.8rem;
+  color: #64748b;
+}
+
 .edit-panel .edit-title {
   margin: 0 0 0.45rem;
   font-size: 1rem;
@@ -1301,7 +1530,44 @@ select:focus {
 }
 
 @media (max-width: 960px) {
-  .app-shell {
+  .app-shell-dashboard {
+    flex-direction: column;
+  }
+
+  .app-sidebar {
+    width: 100%;
+    height: auto;
+    position: relative;
+    top: auto;
+    border-right: none;
+    border-bottom: 1px solid #1f2431;
+    padding: 1rem;
+  }
+
+  .sidebar-main {
+    gap: 0.85rem;
+  }
+
+  .sidebar-nav {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.4rem;
+  }
+
+  .sidebar-link {
+    border-left: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 10px;
+  }
+
+  .sidebar-link-active {
+    border-bottom-color: #6366f1;
+  }
+
+  .sidebar-footer {
+    margin-top: 1rem;
+  }
+
+  .dashboard-content {
     padding: 1rem;
   }
 
@@ -1345,9 +1611,21 @@ select:focus {
   .auth-panel {
     padding: 1.5rem;
   }
+
+  .sidebar-nav {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar-user-actions {
+    grid-template-columns: 1fr 1fr;
+  }
 }
 
 @media (max-width: 680px) {
+  .sidebar-user-actions {
+    grid-template-columns: 1fr;
+  }
+
   .top-nav {
     flex-direction: column;
     align-items: flex-start;
@@ -1409,10 +1687,12 @@ select:focus {
 @media print {
   /* Hide everything except the document table */
   .top-nav,
+  .app-sidebar,
   .kpi-bar,
   .panel.create-panel,
   .panel.export-permissions-panel,
   .panel.export-history-panel,
+  .panel.audit-log-panel,
   .tab-switcher,
   .controls-row,
   .panel-heading,
@@ -1437,6 +1717,11 @@ select:focus {
 
   .app-shell {
     padding: 0;
+  }
+
+  .app-shell-dashboard {
+    display: block;
+    background: #ffffff;
   }
 
   .dashboard-content {
