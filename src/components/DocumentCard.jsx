@@ -1,3 +1,5 @@
+import { Eye, Pencil, Trash2 } from 'lucide-react'
+
 export default function DocumentCard({
   doc,
   userRole,
@@ -43,7 +45,6 @@ export default function DocumentCard({
 }) {
   const badge = getBadgeForDocument(doc)
   const dueStatus = getDueStatus(doc.due_date)
-  const documentActivityLogs = activityLogs[doc.id] || []
   const hasEdited = (editedCounts[doc.id] || 0) > 0
   const hasReachedEditLimit = userRole === 'staff' && (editCounts[doc.id] || 0) >= 3
 
@@ -149,7 +150,7 @@ export default function DocumentCard({
           <p className="document-reference">PV No: {doc.reference || 'N/A'}</p>
           <p className="document-batch">Batch No: {doc.batch_number || 'N/A'}</p>
           <p className="document-description">{getDescriptionExcerpt(doc.description)}</p>
-          <p className="document-amount">Amount: ₦ {formatAmount(doc.amount)}</p>
+          <p className="document-amount">Amount: {formatAmount(doc.amount)}</p>
           <div className="status-row">
             <span className={`status-pill ${badge.className}`}>{badge.label}</span>
             {hasEdited && <span className="edited-pill">Edited</span>}
@@ -180,47 +181,38 @@ export default function DocumentCard({
           <div className="card-actions">
             <button
               type="button"
-              className="btn btn-primary btn-small"
+              className="btn btn-small card-action-btn"
               onClick={() => onEditClick(doc, userRole)}
               disabled={hasReachedEditLimit}
+              aria-label="Edit document"
               title={hasReachedEditLimit ? 'Edit limit reached. Contact your administrator.' : undefined}
             >
-              Edit
-            </button>
-            <button type="button" className="btn btn-danger btn-small" onClick={() => onDeleteClick(doc.id)}>
-              Delete
+              <Pencil size={14} strokeWidth={2.1} />
             </button>
             <button
               type="button"
-              className={`btn btn-neutral btn-small ${historyExpandedId === doc.id ? 'btn-active' : ''}`}
+              className={`btn btn-small card-action-btn ${historyExpandedId === doc.id ? 'btn-active' : ''}`}
               onClick={() => onToggleHistory(doc.id)}
+              aria-label={historyExpandedId === doc.id ? 'Close history' : 'View history'}
+              title={historyExpandedId === doc.id ? 'Close history' : 'View history'}
             >
-              {historyExpandedId === doc.id ? 'Hide History' : 'View History'}
+              <Eye size={14} strokeWidth={2.1} />
+            </button>
+            <button
+              type="button"
+              className="btn btn-small card-action-btn card-action-btn-delete"
+              onClick={() => onDeleteClick(doc.id)}
+              aria-label="Delete document"
+              title="Delete document"
+            >
+              <Trash2 size={14} strokeWidth={2.1} />
             </button>
           </div>
           {hasReachedEditLimit && <p className="edit-limit-msg">Edit limit reached. Contact your administrator.</p>}
           {permissionMessages[doc.id] && <p className="inline-permission-msg">{permissionMessages[doc.id]}</p>}
-
-          {historyExpandedId === doc.id && (
-            <div className="activity-history">
-              {documentActivityLogs.length === 0 && <p className="empty-msg">No activity yet.</p>}
-              {documentActivityLogs.length > 0 && (
-                <ul className="activity-list">
-                  {documentActivityLogs.map((log) => (
-                    <li key={log.id} className="activity-item">
-                      <span className="activity-message">{formatActivityLog(log, currentUserId, activityLogUsers)}</span>
-                      <span className="activity-meta">
-                        {' '}
-                        {new Date(log.created_at).toLocaleString()}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
         </>
       )}
     </article>
   )
 }
+

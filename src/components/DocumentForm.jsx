@@ -17,13 +17,17 @@ export default function DocumentForm({
   docError,
   submitLoading,
   onSubmit,
-  formatDocumentType
+  formatDocumentType,
+  framed = true,
+  title = 'Create Document',
+  descriptionText = 'Add new records with an initial workflow status.',
+  submitLabel = 'Add Document'
 }) {
   return (
-    <section className="panel create-panel">
+    <section className={framed ? 'panel create-panel' : 'create-panel create-panel-plain'}>
       <div className="panel-heading">
-        <h2>Create Document</h2>
-        <p>Add new records with an initial workflow status.</p>
+        <h2>{title}</h2>
+        <p>{descriptionText}</p>
       </div>
       <form className="create-form" onSubmit={onSubmit}>
         <div className="form-group">
@@ -105,7 +109,7 @@ export default function DocumentForm({
         </div>
         {docError && <p className="error-msg">{docError}</p>}
         <button type="submit" className="btn btn-primary" disabled={submitLoading}>
-          {submitLoading ? 'Adding...' : 'Add Document'}
+          {submitLoading ? 'Adding...' : submitLabel}
         </button>
       </form>
     </section>
