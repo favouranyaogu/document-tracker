@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 
-export default function KPIBar({ documents, formatAmount, isDocOverdue, isDueSoon }) {
+export default function KPIBar({ documents, formatAmount, isDocOverdue, isDueSoon, compactAmounts = false }) {
   const [range, setRange] = useState('month')
 
   const now = new Date()
@@ -26,6 +26,45 @@ export default function KPIBar({ documents, formatAmount, isDocOverdue, isDueSoo
   const overdueCount = scopedDocuments.filter(isDocOverdue).length
   const dueSoonCount = scopedDocuments.filter(isDueSoon).length
   const sentCount = scopedDocuments.filter((doc) => doc.status === 'completed').length
+  const fullTotalAmount = formatAmount(totalAmount)
+
+  function formatCompactCurrency(value) {
+    const number = Number(value)
+    if (Number.isNaN(number)) {
+      return {
+        prefix: 'NGN',
+        amount: '0.00'
+      }
+    }
+
+    const absValue = Math.abs(number)
+    const units = [
+      { value: 1000000000, suffix: 'B' },
+      { value: 1000000, suffix: 'M' },
+      { value: 1000, suffix: 'K' }
+    ]
+    const matchedUnit = units.find((unit) => absValue >= unit.value)
+
+    if (!matchedUnit) {
+      return {
+        prefix: 'NGN',
+        amount: number.toLocaleString(undefined, {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        })
+      }
+    }
+
+    const compactValue = number / matchedUnit.value
+    const decimals = Math.abs(compactValue) >= 100 ? 0 : 1
+
+    return {
+      prefix: 'NGN',
+      amount: `${compactValue.toFixed(decimals).replace(/\.0$/, '')}${matchedUnit.suffix}`
+    }
+  }
+
+  const compactTotalAmount = formatCompactCurrency(totalAmount)
 
   return (
     <section className="kpi-section" aria-label="Document Summary">
@@ -59,7 +98,13 @@ export default function KPIBar({ documents, formatAmount, isDocOverdue, isDueSoo
         </article>
         <article className="kpi-card">
           <p className="kpi-label">Total Amount</p>
-          <p className="kpi-value">{formatAmount(totalAmount)}</p>
+          <p
+            className={`kpi-value kpi-value-currency-lockup ${compactAmounts ? 'kpi-value-currency-lockup-compact' : ''}`}
+            title={fullTotalAmount}
+          >
+            <span className="kpi-value-prefix">{compactTotalAmount.prefix}</span>
+            <span className="kpi-value-amount">{compactTotalAmount.amount}</span>
+          </p>
         </article>
         <article className="kpi-card kpi-card-overdue">
           <p className="kpi-label">Overdue</p>

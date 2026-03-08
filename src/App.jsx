@@ -117,6 +117,9 @@ function App() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
   const [profileMenuOpen, setProfileMenuOpen] = useState(false)
   const [createDrawerOpen, setCreateDrawerOpen] = useState(false)
+  const [isPhoneViewport, setIsPhoneViewport] = useState(() => (
+    typeof window !== 'undefined' ? window.innerWidth <= 720 : false
+  ))
   const passwordCloseTimerRef = useRef(null)
   const inactivityTimerRef = useRef(null)
   const countdownIntervalRef = useRef(null)
@@ -388,6 +391,16 @@ function App() {
       }
     }
   ), [])
+
+  useEffect(() => {
+    function syncViewport() {
+      setIsPhoneViewport(window.innerWidth <= 720)
+    }
+
+    syncViewport()
+    window.addEventListener('resize', syncViewport)
+    return () => window.removeEventListener('resize', syncViewport)
+  }, [])
 
   useEffect(() => {
     if (!user) {
@@ -1191,6 +1204,26 @@ function App() {
     })
   }
 
+  function formatCompactAmount(value) {
+    const number = Number(value)
+    if (Number.isNaN(number)) return '0.00'
+
+    const absValue = Math.abs(number)
+    if (absValue < 1000000) return formatAmount(number)
+
+    const units = [
+      { value: 1000000000, suffix: 'B' },
+      { value: 1000000, suffix: 'M' }
+    ]
+
+    const matchedUnit = units.find((unit) => absValue >= unit.value)
+    if (!matchedUnit) return formatAmount(number)
+
+    const compactValue = number / matchedUnit.value
+    const precision = Math.abs(compactValue) >= 10 ? 1 : 2
+    return `${compactValue.toFixed(precision).replace(/\.0+$/, '').replace(/(\.\d*[1-9])0+$/, '$1')}${matchedUnit.suffix}`
+  }
+
   function detectDocumentType(batchValue) {
     const val = (batchValue || '').trim().toUpperCase()
     if (val.startsWith('TPP') || val.startsWith('NCDF')) return 'third_party'
@@ -1304,8 +1337,8 @@ function App() {
     return value === 'third_party' ? 'doc-type-third-party' : 'doc-type-claims'
   }
 
-  function formatCurrency(value) {
-    return `NGN ${formatAmount(value)}`
+  function formatCurrency(value, options = {}) {
+    return `NGN ${options.compact ? formatCompactAmount(value) : formatAmount(value)}`
   }
 
   function matchesDocumentSearch(doc, term) {
@@ -1341,14 +1374,14 @@ function App() {
   const userRole = user?.role === 'admin' ? 'admin' : 'staff'
   const hasExportAccess = userRole === 'admin' || canExport
   const displayName = user?.name || user?.email || 'Unknown User'
-  const currentPath = location.pathname
+  const currentPath = location.pathname === '/' ? '/dashboard' : location.pathname
   const documentReferenceMap = documents.reduce((acc, doc) => {
     acc[doc.id] = doc.reference || doc.batch_number || 'Unknown document'
     return acc
   }, {})
   const navLinks = [
     {
-      to: '/',
+      to: '/dashboard',
       label: 'Dashboard',
       icon: LayoutDashboard
     },
@@ -1385,6 +1418,9 @@ function App() {
           ? 'Manage export access for staff without crowding the rest of the workspace.'
           : 'Track the current month, urgent work, and recent activity at a glance.'
   const currentUserId = user?.id ?? null
+  const effectiveDocumentView = isPhoneViewport ? 'card' : documentView
+  const showCreateButton = currentPath === '/dashboard' || currentPath === '/documents'
+  const formatSurfaceCurrency = (value) => formatCurrency(value, { compact: isPhoneViewport })
   const currentYear = new Date().getFullYear()
   const auditTimelineEntries = recentAuditLogs.map((log) => ({
     log,
@@ -1530,6 +1566,7 @@ function App() {
   useEffect(() => {
     setMobileNavOpen(false)
     setProfileMenuOpen(false)
+    setCreateDrawerOpen(false)
   }, [location.pathname])
 
   useEffect(() => {
@@ -1621,7 +1658,7 @@ function App() {
       : filteredDocuments.length === 0
         ? <p className="empty-msg">No documents match your search or filter.</p>
         : (
-          documentView === 'card' ? (
+          effectiveDocumentView === 'card' ? (
             <div className="document-grid">
               {filteredDocuments.map((doc) => (
                 <DocumentCard
@@ -1660,7 +1697,7 @@ function App() {
                   getDueStatus={getDueStatus}
                   getDueText={getDueText}
                   formatDueDate={formatDueDate}
-                  formatAmount={formatCurrency}
+                  formatAmount={formatSurfaceCurrency}
                   formatStatusForDisplay={formatStatusForDisplay}
                   formatDocumentType={formatDocumentType}
                   getDocumentTypeClassName={getDocumentTypeClassName}
@@ -1761,7 +1798,8 @@ function App() {
     <div className="workspace-view dashboard-view">
       <KPIBar
         documents={documents}
-        formatAmount={formatCurrency}
+        formatAmount={formatSurfaceCurrency}
+        compactAmounts={isPhoneViewport}
         isDocOverdue={isDocOverdue}
         isDueSoon={isDueSoon}
       />
@@ -1882,7 +1920,7 @@ function App() {
                       </span>
                     </div>
                     <p className="overview-list-meta">
-                      {doc.reference || 'No reference'} | {formatCurrency(doc.amount)}
+                      {doc.reference || 'No reference'} | {formatSurfaceCurrency(doc.amount)}
                     </p>
                   </div>
                   <button
@@ -1974,34 +2012,38 @@ function App() {
           </div>
 
           <div className="documents-heading-actions">
-            <div className="documents-view-toggle" role="group" aria-label="Document view">
-              <button
-                type="button"
-                className={`documents-view-btn ${documentView === 'card' ? 'documents-view-btn-active' : ''}`}
-                onClick={() => setDocumentView('card')}
-                aria-label="Card view"
-                title="Card view"
-              >
-                <LayoutGrid size={14} strokeWidth={2.2} />
-              </button>
-              <button
-                type="button"
-                className={`documents-view-btn ${documentView === 'list' ? 'documents-view-btn-active' : ''}`}
-                onClick={() => setDocumentView('list')}
-                aria-label="List view"
-                title="List view"
-              >
-                <Table2 size={14} strokeWidth={2.2} />
-              </button>
-            </div>
+            {!isPhoneViewport && (
+              <div className="documents-view-toggle" role="group" aria-label="Document view">
+                <button
+                  type="button"
+                  className={`documents-view-btn ${documentView === 'card' ? 'documents-view-btn-active' : ''}`}
+                  onClick={() => setDocumentView('card')}
+                  aria-label="Card view"
+                  title="Card view"
+                >
+                  <LayoutGrid size={14} strokeWidth={2.2} />
+                </button>
+                <button
+                  type="button"
+                  className={`documents-view-btn ${documentView === 'list' ? 'documents-view-btn-active' : ''}`}
+                  onClick={() => setDocumentView('list')}
+                  aria-label="List view"
+                  title="List view"
+                >
+                  <Table2 size={14} strokeWidth={2.2} />
+                </button>
+              </div>
+            )}
 
-            <button
-              type="button"
-              className="btn btn-neutral"
-              onClick={() => window.print()}
-            >
-              Print list
-            </button>
+            {!isPhoneViewport && (
+              <button
+                type="button"
+                className="btn btn-neutral"
+                onClick={() => window.print()}
+              >
+                Print list
+              </button>
+            )}
           </div>
         </div>
 
@@ -2381,7 +2423,7 @@ function App() {
                 <NavLink
                   key={link.to}
                   to={link.to}
-                  end={link.to === '/'}
+                  end={link.to === '/dashboard'}
                   className={({ isActive }) => `workspace-nav-link ${isActive ? 'workspace-nav-link-active' : ''}`}
                 >
                   <span className="workspace-nav-icon" aria-hidden="true">
@@ -2475,7 +2517,7 @@ function App() {
                 <NavLink
                   key={link.to}
                   to={link.to}
-                  end={link.to === '/'}
+                  end={link.to === '/dashboard'}
                   className={({ isActive }) => `workspace-nav-link ${isActive ? 'workspace-nav-link-active' : ''}`}
                   onClick={() => setMobileNavOpen(false)}
                 >
@@ -2544,7 +2586,7 @@ function App() {
       )}
 
       <div className="workspace-main">
-        <header className="workspace-topbar">
+        <header className={`workspace-topbar ${showCreateButton ? '' : 'workspace-topbar-no-action'}`}>
           <div className="workspace-topbar-leading">
             <button
               type="button"
@@ -2574,15 +2616,17 @@ function App() {
             />
           </label>
 
-          <div className="workspace-topbar-actions">
-            <button
-              type="button"
-              className="workspace-primary-btn"
-              onClick={() => setCreateDrawerOpen(true)}
-            >
-              New Document
-            </button>
-          </div>
+          {showCreateButton && (
+            <div className="workspace-topbar-actions">
+              <button
+                type="button"
+                className="workspace-primary-btn"
+                onClick={() => setCreateDrawerOpen(true)}
+              >
+                New Document
+              </button>
+            </div>
+          )}
         </header>
 
         <main className="workspace-page">
@@ -2926,15 +2970,16 @@ function App() {
 
   return (
     <Routes>
-      <Route path="/login" element={user ? <Navigate to="/" replace /> : loginView} />
+      <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : loginView} />
       <Route path="/" element={user ? authenticatedLayout : <Navigate to="/login" replace />}>
-        <Route index element={dashboardPage} />
+        <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route path="dashboard" element={dashboardPage} />
         <Route path="documents" element={documentsPage} />
         <Route path="export" element={exportPage} />
         <Route path="audit-log" element={auditLogPage} />
         <Route path="permissions" element={permissionsPage} />
       </Route>
-      <Route path="*" element={<Navigate to={user ? '/' : '/login'} replace />} />
+      <Route path="*" element={<Navigate to={user ? '/dashboard' : '/login'} replace />} />
     </Routes>
   )
 }
